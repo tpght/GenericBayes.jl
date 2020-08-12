@@ -31,9 +31,10 @@ end
 log_posterior_density(model::LinearGaussian, θ::GaussianParam) = logpdf(prior(model, GaussianParam), θ.components) + loglikelihood(model, θ)
 prior_mode(model::LinearGaussian, ::Type{GaussianParam}) = GaussianParam(model.μ_p)
 sample_size(model::LinearGaussian) = size(model.y)[2]
+mle(model::LinearGaussian, ::GaussianParam) = GaussianParam(mean(model.y, dims=2)[:,1])
 mle(model::LinearGaussian, ::Type{GaussianParam}) = GaussianParam(mean(model.y, dims=2)[:,1])
 
-function map(model::LinearGaussian, ::Type{GaussianParam})
+function map(model::LinearGaussian, ::GaussianParam)
 	Q = inv(model.Σ)
 	Q_p = inv(model.Σ_p)
 	n = sample_size(model)

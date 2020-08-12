@@ -1,7 +1,7 @@
 module GenericBayes
 
 using StatsBase, LinearAlgebra, ForwardDiff
-import Base.Vector, Base.map, Base.Array
+import Base.Vector, Base.map, Base.Array, Base.length
 
 export Multinomial
 export log_posterior_density, sufficient_statistic
@@ -34,10 +34,12 @@ macro vector_param(name)
     )
     ar = :( Array(θ::$name) = θ.components )
     vec = :( Vector(θ::$name) = Array(θ) )
+    len = :( length(θ::$name) = length(θ.components) )
     return quote
         $(esc(def))
         $(esc(ar))
         $(esc(vec))
+        $(esc(len))
     end
 end
 
@@ -49,6 +51,9 @@ macro reparam(from, to, f)
     end
     )
 end
+
+lower_box(model::BayesModel, T::Type{<:Parameter}) = [-Inf for i in 1:dimension(model)]
+upper_box(model::BayesModel, T::Type{<:Parameter}) = [Inf for i in 1:dimension(model)]
 
 # TODO
 # jacobian(model::BayesModel, θ::Parameter)
@@ -79,21 +84,57 @@ end
 const ∇²logπ = hessian_log_posterior_density
 
 """ The maximum likelihood estimate (MLE) of the model. """
+function mle(model::BayesModel, θ::Parameter, data::Array)
+    ParameterType = Base.typename(typeof(θ)).wrapper
+    cost(x) = -loglikelihood(model, ParameterType(x), data)
+    od = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
+    lower = lower_box(model, ParameterType)
+    upper = upper_box(model, ParameterType)
+    x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))
+    ParameterType(x_min)
+end
+
 function mle(model::BayesModel, θ::Parameter)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -loglikelihood(model, ParameterType(x))
-    td = TwiceDifferentiable(cost, Array(θ); autodiff=:forward)
-    x_min = Optim.minimizer(optimize(td, Array(θ), Newton()))
+    od = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
+    lower = lower_box(model, ParameterType)
+    upper = upper_box(model, ParameterType)
+    x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))
     ParameterType(x_min)
 end
 
 """ The maximum-a-posterior (MAP) of the model. """
+function map(model::BayesModel, θ::Parameter, data::Array)
+    ParameterType = Base.typename(typeof(θ)).wrapper
+    cost(x) = -log_posterior_density(model, ParameterType(x), data)
+    td = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
+    lower = lower_box(model, ParameterType)
+    upper = upper_box(model, ParameterType)
+    x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))
+    ParameterType(x_min)
+end
+
 function map(model::BayesModel, θ::Parameter)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -log_posterior_density(model, ParameterType(x))
-    td = TwiceDifferentiable(cost, Array(θ); autodiff=:forward)
-    x_min = Optim.minimizer(optimize(td, Array(θ), Newton()))
+    od = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
+    lower = lower_box(model, ParameterType)
+    upper = upper_box(model, ParameterType)
+    x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))
     ParameterType(x_min)
+end
+
+function check_param(model::BayesModel, θ::Parameter)
+    # Check parameter has the right dimension
+    # NOTE: This check might fail unnecessarily;
+    # e.g. a probability parameter has length n+1
+    length(θ) == dimension(model) ? nothing : throw(ArgumentError("Parameter has dimension $(length(θ)); model is dimension $(dimension(θ))"))
+    
+    # Check parameter is in bounds
+    ParameterType = Base.typename(typeof(θ)).wrapper
+    p = Vector(θ)
+    all((p .> lower_box(model, ParameterType)) .& (p .< upper_box(model, ParameterType))) ? nothing : throw(ArgumentError("Parameter is out of bounds: $(Vector(θ))"))
 end
 
 include("models/ExponentialFamilies.jl")
