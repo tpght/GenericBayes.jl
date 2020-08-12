@@ -14,18 +14,28 @@ export @vector_param, @reparam
 """
     BayesModel
 
-Any type representing a Bayesian model.
+A `BayesModel` is any type representing a Bayesian model.
+
+Any `BayesModel` should implement at least `log_posterior_density`.
 """
 abstract type BayesModel end
 
 """
     Parameter{T<:Real}
 
-Any type representing a model parameter.
+A `Parameter` is any type representing a realization of the posterior distribution.
+
+For Bayesian models, this corresponds to parameters of a statistical family.
 """
 abstract type Parameter{T<:Real} end
 
-""" Macro creates a new vector parameter type """
+"""
+    vector_param(name)
+
+Generates code that defines a `Parameter` called `$name`.
+
+The generated code implements `Base.Array`, `Base.Vector`, and `Base.length` which returns the dimension of the vector.
+"""
 macro vector_param(name)
     def =:(
         struct $name{T} <: Parameter{T}
@@ -43,7 +53,9 @@ macro vector_param(name)
     end
 end
 
-""" Macro for defining a relationship between co-ordinates """
+"""
+    reparam(from, to, f)
+"""
 macro reparam(from, to, f)
     return :(
     function $to(θ::$from, model::Union{BayesModel,Nothing}=nothing)
@@ -52,20 +64,51 @@ macro reparam(from, to, f)
     )
 end
 
-lower_box(model::BayesModel, T::Type{<:Parameter}) = [-Inf for i in 1:dimension(model)]
-upper_box(model::BayesModel, T::Type{<:Parameter}) = [Inf for i in 1:dimension(model)]
+
+"""
+    lower_box(model, P)
+
+Define the lower bounds for components of parameters of type `P` when used
+to parameterize `model`.
+
+Default returns `-Inf` in each component, i.e. no lower bounds.
+"""
+lower_box(model::BayesModel, P::Type{<:Parameter}) = [-Inf for i in 1:dimension(model)]
+
+"""
+    upper_box(model, P)
+
+Define the upper bounds for components of parameters of type `P` when used
+to parameterize `model`.
+
+Default returns `Inf` in each component, i.e. no upper bounds.
+"""
+upper_box(model::BayesModel, P::Type{<:Parameter}) = [Inf for i in 1:dimension(model)]
 
 # TODO
 # jacobian(model::BayesModel, θ::Parameter)
 """ Log absolute-value of the determinant of the jacobian matrix of a change of parameterization. """
 logabsdetjac(model::BayesModel, θ::Parameter) = log(abs(det(jacobian())))
 
-""" Log posterior density of the model. """
+"""
+    log_posterior_density(model, θ)
+
+The (natural) log of the posterior probability density of `model` up to additive constant.
+
+Alias function names: `lpd` and `logπ`.
+"""
 function log_posterior_density(model::BayesModel, θ::Parameter) end
 const lpd = log_posterior_density
 const logπ = log_posterior_density
 
-""" Gradient of log posterior density. """
+"""
+    grad_log_posterior_density(model, θ)
+
+Vector of partial derivatives of `log_posterior_density` with respect to components of `θ`.
+
+Default uses automatic differentiation.
+Alias function names: `∇logπ`.
+"""
 function grad_log_posterior_density(model::BayesModel, θ::Parameter)
     # Default uses autodiff
     ParameterType = Base.typename(typeof(θ)).wrapper
@@ -74,7 +117,14 @@ function grad_log_posterior_density(model::BayesModel, θ::Parameter)
 end
 const ∇logπ = grad_log_posterior_density
 
-""" Hessian of log posterior density. """
+"""
+    hessian_log_posterior_density(model, θ)
+
+Matrix of second-order partial derivatives of `log_posterior_density` with respect to components of `θ`.
+
+Default uses automatic differentiation.
+Alias function names: `∇²logπ`.
+"""
 function hessian_log_posterior_density(model::BayesModel, θ::Parameter)
     # Default uses autodiff
     ParameterType = Base.typename(typeof(θ)).wrapper
@@ -83,7 +133,14 @@ function hessian_log_posterior_density(model::BayesModel, θ::Parameter)
 end
 const ∇²logπ = hessian_log_posterior_density
 
-""" The maximum likelihood estimate (MLE) of the model. """
+"""
+    mle(model, θ, data)
+
+the maximum likelihood estimate (mle) of `model` when parameterized by `typeof(θ)`
+and passing `data` to `loglikelihood`.
+
+Optimization uses `θ` as an initial guess.
+"""
 function mle(model::BayesModel, θ::Parameter, data::Array)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -loglikelihood(model, ParameterType(x), data)
@@ -94,6 +151,14 @@ function mle(model::BayesModel, θ::Parameter, data::Array)
     ParameterType(x_min)
 end
 
+"""
+    mle(model, θ)
+
+The maximum likelihood estimate (MLE) of `model` when parameterized by `typeof(θ)`
+and using data already specified in `model`.
+
+Optimization uses `θ` as an initial guess.
+"""
 function mle(model::BayesModel, θ::Parameter)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -loglikelihood(model, ParameterType(x))
@@ -104,7 +169,14 @@ function mle(model::BayesModel, θ::Parameter)
     ParameterType(x_min)
 end
 
-""" The maximum-a-posterior (MAP) of the model. """
+"""
+    map(model, θ, data)
+
+The maximum-a-posterior (map) of `model` when parameterized by `typeof(θ)`
+and passing `data` to `loglikelihood`.
+
+Optimization uses `θ` as an initial guess.
+"""
 function map(model::BayesModel, θ::Parameter, data::Array)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -log_posterior_density(model, ParameterType(x), data)
@@ -115,6 +187,14 @@ function map(model::BayesModel, θ::Parameter, data::Array)
     ParameterType(x_min)
 end
 
+"""
+    map(model, θ, data)
+
+The maximum-a-posterior (map) of `model` when parameterized by `typeof(θ)`
+and using data internally specified in `model`.
+
+Optimization uses `θ` as an initial guess.
+"""
 function map(model::BayesModel, θ::Parameter)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -log_posterior_density(model, ParameterType(x))
@@ -125,6 +205,12 @@ function map(model::BayesModel, θ::Parameter)
     ParameterType(x_min)
 end
 
+"""
+    check_param(model, θ)
+
+Returns True if `θ` is a permissible parameter for `model`, i.e.
+lies in the parameter space of `model`.
+"""
 function check_param(model::BayesModel, θ::Parameter)
     # Check parameter has the right dimension
     # NOTE: This check might fail unnecessarily;
