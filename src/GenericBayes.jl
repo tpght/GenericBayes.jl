@@ -32,7 +32,7 @@ abstract type Parameter{T<:Real} end
 """
     vector_param(name)
 
-Generates code that defines a `Parameter` called `$name`.
+Generates code that defines a `Parameter` called `name`.
 
 The generated code implements `Base.Array`, `Base.Vector`, and `Base.length` which returns the dimension of the vector.
 """
