@@ -2,12 +2,15 @@ module GenericBayes
 
 using StatsBase, LinearAlgebra, ForwardDiff
 import Base.Vector, Base.map, Base.Array, Base.length
+import Distributions.sample
+import Plots.scatter!
 
 export Multinomial
 export log_posterior_density, sufficient_statistic
 export ∇logπ, grad_log_posterior_density
 export ∇²logπ, hessian_log_posterior_density
 export likelihood, loglikelihood, mle, map, prior_mode, prior, simulate
+export log_posterior_density.
 
 export @vector_param, @reparam
 
@@ -42,14 +45,26 @@ macro vector_param(name)
             components::Vector{T}
         end
     )
+    con =:(
+        function $name(x::Array{T,2}) where T<:Real
+            [GaussianParam(x[:,i]) for i in 1:size(x,2)]
+        end
+    )
     ar = :( Array(θ::$name) = θ.components )
+    ar2 = :(
+        function Array(vec::Vector{P}) where P<:$name
+            hcat([Array(vec[i]) for i in 1:length(vec)]...)
+        end
+    )
     vec = :( Vector(θ::$name) = Array(θ) )
     len = :( length(θ::$name) = length(θ.components) )
     return quote
         $(esc(def))
         $(esc(ar))
+        $(esc(ar2))
         $(esc(vec))
         $(esc(len))
+        $(esc(con))
     end
 end
 
@@ -188,7 +203,7 @@ function map(model::BayesModel, θ::Parameter, data::Array)
 end
 
 """
-    map(model, θ, data)
+    map(model, θ)
 
 The maximum-a-posterior (map) of `model` when parameterized by `typeof(θ)`
 and using data internally specified in `model`.

@@ -1,13 +1,24 @@
 using Plots
 
-export plot_posterior_density2D
+export quantile_contour2D
 
-# TODO: Can I just pass optional arguments into contour?
 """ Plots the posterior density of a model. """
-function plot_posterior_density2D(model::BayesModel, ParameterType::Type{<:Parameter}, xrange, yrange)
-    gr()
-    post(x1, x2) = log_posterior_density(model, ParameterType([x1, x2]))
+function quantile_contour2D(model::BayesModel, ParameterType::Type{<:Parameter}, xrange, yrange, p = 0.1:0.1:0.9)
+    # Start plotting backend
+    pyplot()
+    
+    post(x1, x2) = -log_posterior_density(model, ParameterType([x1, x2]))
 
-    posterior=contour(xrange,yrange,post, title="Log Posterior Density")
-    posterior
+    # Compute contours using Laplace approximation (see thesis)
+    nlpd_at_map = -log_posterior_density(model, map(model, ParameterType(ones(2))))
+    levels =  nlpd_at_map .+ quantile.(Chisq(dimension(model) - 1), p)
+
+    contour(xrange,yrange,post, levels=levels, title="Log Posterior Density")
+end
+
+function scatter!(plot_, samples::Vector{P}) where P<:Parameter
+    data = Array(samples)
+    x = data[1,:]
+    y = data[2,:]
+    scatter!(plot_, x, y) 
 end
