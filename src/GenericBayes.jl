@@ -10,7 +10,7 @@ export log_posterior_density, sufficient_statistic
 export ∇logπ, grad_log_posterior_density
 export ∇²logπ, hessian_log_posterior_density
 export likelihood, loglikelihood, mle, map, prior_mode, prior, simulate
-export log_posterior_density.
+export log_posterior_density
 
 export @vector_param, @reparam
 
@@ -26,7 +26,8 @@ abstract type BayesModel end
 """
     Parameter{T<:Real}
 
-A `Parameter` is any type representing a realization of the posterior distribution.
+A `Parameter` is any type representing a realization of the posterior
+distribution.
 
 For Bayesian models, this corresponds to parameters of a statistical family.
 """
@@ -37,7 +38,8 @@ abstract type Parameter{T<:Real} end
 
 Generates code that defines a `Parameter` called `name`.
 
-The generated code implements `Base.Array`, `Base.Vector`, and `Base.length` which returns the dimension of the vector.
+The generated code implements `Base.Array`, `Base.Vector`, and
+`Base.length` which returns the dimension of the vector.
 """
 macro vector_param(name)
     def =:(
@@ -230,17 +232,25 @@ function check_param(model::BayesModel, θ::Parameter)
     # Check parameter has the right dimension
     # NOTE: This check might fail unnecessarily;
     # e.g. a probability parameter has length n+1
-    length(θ) == dimension(model) ? nothing : throw(ArgumentError("Parameter has dimension $(length(θ)); model is dimension $(dimension(θ))"))
-    
+    length(θ) == dimension(model) ? nothing : throw(ArgumentError(
+    "Parameter has dimension $(length(θ)); model is dimension $(dimension(θ))"))
+
     # Check parameter is in bounds
     ParameterType = Base.typename(typeof(θ)).wrapper
     p = Vector(θ)
-    all((p .> lower_box(model, ParameterType)) .& (p .< upper_box(model, ParameterType))) ? nothing : throw(ArgumentError("Parameter is out of bounds: $(Vector(θ))"))
+    all((p .> lower_box(model, ParameterType)) .&
+    (p .< upper_box(model, ParameterType))) ?
+    nothing : throw(ArgumentError("Parameter is out of bounds: $(Vector(θ))"))
 end
 
+# Include files from project
 include("models/ExponentialFamilies.jl")
 include("models/LinearGaussian.jl")
 include("models/Forward.jl")
 include("vis/Density.jl")
 
+"""
+A Julia package for writing MCMC samplers independently of model
+parameterization or representation.
+"""
 end # module
