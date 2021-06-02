@@ -1,15 +1,15 @@
 module GenericBayes
 
-using StatsBase, LinearAlgebra, ForwardDiff
-import Base.Vector, Base.map, Base.Array, Base.length
+using StatsBase, LinearAlgebra, ForwardDiff, Optim
+import Base.Vector, Base.Array, Base.length
 import Distributions.sample
 import Plots.scatter!
 
-export Multinomial
+export Multinomial, BayesModel, Parameter
 export log_posterior_density, sufficient_statistic
 export ∇logπ, grad_log_posterior_density
 export ∇²logπ, hessian_log_posterior_density
-export likelihood, loglikelihood, mle, map, prior_mode, prior, simulate
+export likelihood, loglikelihood, mle, max_posterior, prior_mode, prior, simulate
 export log_posterior_density
 
 export @vector_param, @reparam
@@ -180,44 +180,44 @@ function mle(model::BayesModel, θ::Parameter)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -loglikelihood(model, ParameterType(x))
     od = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
-    lower = lower_box(model, ParameterType)
-    upper = upper_box(model, ParameterType)
+    lower = lower_box(model, typeof(θ))
+    upper = upper_box(model, typeof(θ))
     x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))
     ParameterType(x_min)
 end
 
 """
-    map(model, θ, data)
+    max_posterior(model, θ, data)
 
-The maximum-a-posterior (map) of `model` when parameterized by `typeof(θ)`
+The maximum-a-posterior (max_posterior) of `model` when parameterized by `typeof(θ)`
 and passing `data` to `loglikelihood`.
 
 Optimization uses `θ` as an initial guess.
 """
-function map(model::BayesModel, θ::Parameter, data::Array)
+function max_posterior(model::BayesModel, θ::Parameter, data::Array)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -log_posterior_density(model, ParameterType(x), data)
     td = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
-    lower = lower_box(model, ParameterType)
-    upper = upper_box(model, ParameterType)
+    lower = lower_box(model, typeof(θ))
+    upper = upper_box(model, typeof(θ))
     x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))
     ParameterType(x_min)
 end
 
 """
-    map(model, θ)
+    max_posterior(model, θ)
 
-The maximum-a-posterior (map) of `model` when parameterized by `typeof(θ)`
+The maximum-a-posterior (max_posterior) of `model` when parameterized by `typeof(θ)`
 and using data internally specified in `model`.
 
 Optimization uses `θ` as an initial guess.
 """
-function map(model::BayesModel, θ::Parameter)
+function max_posterior(model::BayesModel, θ::Parameter)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -log_posterior_density(model, ParameterType(x))
     od = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
-    lower = lower_box(model, ParameterType)
-    upper = upper_box(model, ParameterType)
+    lower = lower_box(model, typeof(θ))
+    upper = upper_box(model, typeof(θ))
     x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))
     ParameterType(x_min)
 end
