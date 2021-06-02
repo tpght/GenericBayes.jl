@@ -44,14 +44,14 @@ The generated code implements `Base.Array`, `Base.Vector`, and
 macro vector_param(name)
     def =:(
         struct $name{T} <: Parameter{T}
-            components::Vector{T}
+           components::Vector{T}
         end
     )
-    con =:(
-        function $name(x::Array{T,2}) where T<:Real
-            [GaussianParam(x[:,i]) for i in 1:size(x,2)]
-        end
-    )
+    # con =:(
+    #     function $name(x::Array{T,2}) where T<:Real
+    #         [(x[:,i]) for i in 1:size(x,2)]
+    #     end
+    # )
     ar = :( Array(θ::$name) = θ.components )
     ar2 = :(
         function Array(vec::Vector{P}) where P<:$name
@@ -66,7 +66,7 @@ macro vector_param(name)
         $(esc(ar2))
         $(esc(vec))
         $(esc(len))
-        $(esc(con))
+        # $(esc(con))
     end
 end
 
@@ -137,7 +137,8 @@ const ∇logπ = grad_log_posterior_density
 """
     hessian_log_posterior_density(model, θ)
 
-Matrix of second-order partial derivatives of `log_posterior_density` with respect to components of `θ`.
+Matrix of second-order partial derivatives of `log_posterior_density` with
+respect to components of `θ`.
 
 Default uses automatic differentiation.
 Alias function names: `∇²logπ`.
@@ -248,6 +249,7 @@ include("models/ExponentialFamilies.jl")
 include("models/LinearGaussian.jl")
 include("models/Forward.jl")
 include("vis/Density.jl")
+include("geometry/Geometry.jl")
 
 """
 A Julia package for writing MCMC samplers independently of model
