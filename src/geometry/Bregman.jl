@@ -49,7 +49,14 @@ function legendre_dual(θ::Parameter, geometry::Bregman, model::BayesModel)
     return DualParameter(gradient, geometry, typeof(θ))
 end
 
-# TODO: legendre_dual for dual -> primal
+"""
+    legendre_dual(η::DualParameter{T, G, P}, geometry::G, model::BayesModel)
+
+Compute the Legendre dual to η, i.e. the primal vector θ such that
+legendre_dual(θ, geometry, model) = η.
+
+Default uses automatic differentiation.
+"""
 function legendre_dual(η::DualParameter{T, G, P}, geometry::G,
                        model::BayesModel) where G<:Bregman where
 P<:Parameter{T} where T<:Real
@@ -70,4 +77,43 @@ P<:Parameter{T} where T<:Real
     return θ
 end
 
-# TODO: metric (evaluate Hessian)
+"""
+    dual_bregman_generator(θ, geometry, model)
+
+Evaluate the Legendre dual (convex conjugate) to `bregman_generator` at θ
+"""
+function dual_bregman_generator(θ::Parameter{T}, geometry::Bregman,
+                                model::BayesModel) where T<:Real
+    η = legendre_dual(θ, geometry, model)
+    return θ.components' * η.components - bregman_generator(θ, geometry, model)
+end
+
+"""
+    metric(θ::Parameter{T}, geometry::Bregman, model::BayesModel)
+
+Compute the Riemannian metric, i.e. the hessian of `bregman_generator`.
+"""
+function metric(θ::Parameter{T}, geometry::Bregman, model::BayesModel) where T<:Real
+    # Default uses autodiff
+    ParameterType = Base.typename(typeof(θ)).wrapper
+    proxy(x) = bregman_generator(ParameterType(x), geometry, model)
+    ForwardDiff.hessian(proxy, θ.components)
+end
+
+"""
+    metric(η::DualParameter{T, G, P}, geometry::Bregman, model::BayesModel)
+
+Compute the Riemannian metric, i.e. the inverse hessian of `bregman_generator`.
+"""
+function metric(η::DualParameter{T, G, P}, geometry::G,
+                       model::BayesModel) where G<:Bregman where
+P<:Parameter{T} where T<:Real
+    # Default uses autodiff
+    ParameterType = Base.typename(P).wrapper
+
+    # For now, literally just do the inversion
+    θ = legendre_dual(η, geometry, model)
+    my_metric = metric(θ, geometry, model)
+
+    inv(my_metric)
+end
