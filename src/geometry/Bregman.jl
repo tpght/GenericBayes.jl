@@ -23,14 +23,14 @@ end
 
 Represents the Legendre dual co-ordinate
 """
-struct DualParameter{T<:Real, G<:Bregman}<:Parameter{T}
-   data::Vector{T} 
+struct DualParameter{T<:Real, G<:Bregman, P<:Parameter{T}}<:Parameter{T}
+   components::Vector{T} 
 end
 
-Array(η::DualParameter) = η.data
+Array(η::DualParameter) = η.components
 
-function DualParameter(data::Vector{T}, geometry::Bregman) where T<: Real
-    return DualParameter{T, typeof(geometry)}(data)
+function DualParameter(data::Vector{T}, geometry::Bregman, P::Type{<:Parameter{T}}) where T<: Real
+    return DualParameter{T, typeof(geometry), P}(data)
 end
 
 """
@@ -46,9 +46,28 @@ function legendre_dual(θ::Parameter, geometry::Bregman, model::BayesModel)
     proxy(x) = bregman_generator(ParameterType(x), geometry, model)
     gradient = ForwardDiff.gradient(proxy, θ.components)
 
-    return DualParameter(gradient, geometry)
+    return DualParameter(gradient, geometry, typeof(θ))
 end
 
 # TODO: legendre_dual for dual -> primal
+function legendre_dual(η::DualParameter{T, G, P}, geometry::G,
+                       model::BayesModel) where G<:Bregman where
+P<:Parameter{T} where T<:Real
+
+    # Define the function to be optimized (Legendre dual)
+    ParameterType = Base.typename(P).wrapper
+    proxy(x) = bregman_generator(ParameterType(x), geometry, model) - x' * η.components
+
+    # Optimize the function
+    # TODO Find an appropriate initial point x0
+    x0 = ones(T, size(η.components, 1))
+    result = optimize(proxy, x0, LBFGS(); autodiff = :forward)
+    primal = Optim.minimizer(result)
+
+    # Construct and return primal
+    θ = P(primal)
+
+    return θ
+end
 
 # TODO: metric (evaluate Hessian)
