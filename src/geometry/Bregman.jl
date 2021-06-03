@@ -1,5 +1,5 @@
-using LinearAlgebra, ForwardDiff
-export Bregman, DualParameter
+using LinearAlgebra, ForwardDiff, Optim
+export Bregman, DualParameter, NegativeLogDensity
 export legendre_dual, bregman_generator
 
 """
@@ -14,8 +14,21 @@ abstract type Bregman <: Geometry end
 
 The convex function from which the Bregman divergence and geometry are derived
 """
-function bregman_generator(θ::Parameter, geometry::Bregman, model::BayesModel)
-    error("unimplemented")
+function bregman_generator(θ::Parameter, geometry::Bregman, model::BayesModel) end
+
+"""
+    NegativeLogDensity{P}
+
+Bregman geometry which uses the entire negative log posterior density as the generator.
+
+Of course, the posterior density depends on parameterization. Therefore this
+geometry has P<:Parameter to indicate which co-ordinates defines the geometry.
+"""
+struct NegativeLogDensity{P<:Parameter}<:Bregman end
+
+function bregman_generator(θ::P, geometry::NegativeLogDensity{P2},
+    model::BayesModel) where P<:Parameter where P2<:Parameter
+    return -log_posterior_density(model, θ)
 end
 
 """
@@ -63,12 +76,25 @@ P<:Parameter{T} where T<:Real
 
     # Define the function to be optimized (Legendre dual)
     ParameterType = Base.typename(P).wrapper
+
+    # TODO Find an appropriate initial point x0
+    x0 = ones(T, size(η.components, 1))
+
+    # Define cost function
     proxy(x) = bregman_generator(ParameterType(x), geometry, model) - x' * η.components
 
     # Optimize the function
-    # TODO Find an appropriate initial point x0
-    x0 = ones(T, size(η.components, 1))
-    result = optimize(proxy, x0, LBFGS(); autodiff = :forward)
+    # lower = lower_box(model, P)
+    # upper = upper_box(model, P)
+    result = optimize(proxy, x0, LBFGS(); autodiff=:forward)
+    
+    if(Optim.converged(result) == false)
+        @show Optim.converged(result)
+        @show Optim.iterations(result)
+        @show Optim.iteration_limit_reached(result)
+        error("Could not convert from dual to primal co-ordinates")
+    end
+
     primal = Optim.minimizer(result)
 
     # Construct and return primal

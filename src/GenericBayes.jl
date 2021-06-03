@@ -198,7 +198,7 @@ Optimization uses `θ` as an initial guess.
 function max_posterior(model::BayesModel, θ::Parameter, data::Array)
     ParameterType = Base.typename(typeof(θ)).wrapper
     cost(x) = -log_posterior_density(model, ParameterType(x), data)
-    td = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
+    od = OnceDifferentiable(cost, Array(θ); autodiff=:forward)
     lower = lower_box(model, typeof(θ))
     upper = upper_box(model, typeof(θ))
     x_min = Optim.minimizer(optimize(od, lower, upper, Array(θ), Fminbox(BFGS())))

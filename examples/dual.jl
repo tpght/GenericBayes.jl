@@ -18,3 +18,7 @@ bregman_generator(θ::MyParam, geometry::mygeom, m::mymodel) = 0.5 *
 
 @show θ
 @show legendre_dual(η, mygeom(), mymodel())
+
+# Test evaluation of metric
+Gθ = metric(θ, mygeom(), mymodel())
+Gη = metric(η, mygeom(), mymodel())
