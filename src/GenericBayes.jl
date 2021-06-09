@@ -1,7 +1,8 @@
 module GenericBayes
 
-using StatsBase, LinearAlgebra, ForwardDiff, Optim
+using StatsBase, LinearAlgebra, ForwardDiff, Optim, AbstractMCMC
 import Base.Vector, Base.Array, Base.length
+import AbstractMCMC.AbstractModel
 import Distributions.sample
 import Plots.scatter!
 
@@ -21,7 +22,7 @@ A `BayesModel` is any type representing a Bayesian model.
 
 Any `BayesModel` should implement at least `log_posterior_density`.
 """
-abstract type BayesModel end
+abstract type BayesModel <: AbstractModel end
 
 """
     Parameter{T<:Real}
@@ -43,7 +44,7 @@ The generated code implements `Base.Array`, `Base.Vector`, and
 """
 macro vector_param(name)
     def =:(
-        struct $name{T} <: Parameter{T}
+        mutable struct $name{T} <: Parameter{T}
            components::Vector{T}
         end
     )
@@ -250,6 +251,7 @@ include("models/LinearGaussian.jl")
 include("models/Forward.jl")
 include("vis/Density.jl")
 include("geometry/Geometry.jl")
+include("samplers/Samplers.jl")
 
 """
 A Julia package for writing MCMC samplers independently of model

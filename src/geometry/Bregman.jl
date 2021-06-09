@@ -46,6 +46,10 @@ function DualParameter(data::Vector{T}, geometry::Bregman, P::Type{<:Parameter{T
     return DualParameter{T, typeof(geometry), P}(data)
 end
 
+function DualParameter(data::Vector{T}, geometry::Bregman, P::Type{<:Parameter}) where T<: Real
+    return DualParameter{T, typeof(geometry), P{T}}(data)
+end
+
 """
     legendre_dual(θ::Parameter, geometry::Bregman, model::BayesModel)
 

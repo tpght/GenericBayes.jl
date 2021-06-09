@@ -21,3 +21,8 @@ geometry = NegativeLogDensity{GaussianParam{Float64}}()
 η_true = legendre_dual(θ_true, geometry, model)
 @show θ_true
 @show legendre_dual(η_true, geometry, model)
+
+state = ProductHMCState(GaussianParam(ones(2)), legendre_dual(GaussianParam(2.0
+                                                                            *
+                                                                                ones(2)),
+                                                              geometry, model))

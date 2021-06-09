@@ -24,7 +24,7 @@ post_plot=quantile_contour2D(model, typeof(θ_true),xrange,yrange)
 samples = sample(model, θ_true, 1000)
 scatter!(post_plot, samples)
 
-quantiles = quantile.(Chisq(1), 0.1:0.1:0.9) .- log_posterior_density(model, map(model,θ_true))
+quantiles = quantile.(Chisq(1), 0.1:0.1:0.9) .- log_posterior_density(model, max_posterior(model,θ_true))
 
 # Get value of -lpd at samples
 nlpd = -log_posterior_density.(Ref(model), samples)
@@ -34,5 +34,5 @@ plot(quantiles, y)
 
 
 
-@show ∇logπ(model, map(model, GaussianParam))
+@show ∇logπ(model, max_posterior(model, GaussianParam(zeros(2))))
 
