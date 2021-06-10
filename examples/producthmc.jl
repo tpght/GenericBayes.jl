@@ -1,4 +1,5 @@
-using GenericBayes, LinearAlgebra, Distributions
+using GenericBayes, LinearAlgebra, Distributions, Random, AbstractMCMC,
+    StatsBase, StatsPlots, MCMCChains
 
 n_p = 10 # Prior sample size
 
@@ -25,3 +26,19 @@ state = ProductHMCState(θ1, legendre_dual(θ2, geometry, model))
 
 @show hamiltonian(state, geometry, model)
 @show grad_hamiltonian(state, geometry, model)
+
+# Test leapfrog
+method = ProductManifoldHMC{Float64, GaussianParam{Float64}}(geometry, 0.1, 10, 1.3)
+samples = sample(model, method, 10000, chain_type=MCMCChains.Chains)
+chains = Chains(samples)
+
+xrange=range(8.0, stop=10.0, length=100)
+yrange=range(-5.0, stop=-3.0, length=100)
+post_plot = quantile_contour2D(model, typeof(θ_true), xrange, yrange)
+
+samples2 = cat(samples..., dims=2)
+
+x = samples2[1,200:end]
+y = samples2[2,200:end]
+scatter!(post_plot, x, y) 
+@show ess(chains)

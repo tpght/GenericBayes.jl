@@ -1,8 +1,8 @@
-import AbstractMCMC.AbstractSampler, Base.show
+import AbstractMCMC.AbstractSampler, Base.show, AbstractMCMC.step
 
-export stretch_move!, swap_state!
-export ProductHMCState
-export hamiltonian, grad_hamiltonian
+export stretch_move!, swap_state!, leapfrog!
+export ProductHMCState, ProductManifoldHMC
+export hamiltonian, grad_hamiltonian, step
 
 """
     ProductManifoldHMC
@@ -11,7 +11,7 @@ Hamiltonian Monte Carlo on the product space Q x Q, sampling product density
 
 Described in chapter 6 of the thesis.
 """
-mutable struct ProductManifoldHMC{T<:Real} <: AbstractSampler
+struct ProductManifoldHMC{T<:Real, P<:Parameter{T}} <: AbstractSampler
     geometry::Bregman           # Bregman geometry to use
     ϵ::T                        # Leapfrog step-size
     L::Int                      # Number of Leapfrog steps to take
@@ -19,37 +19,92 @@ mutable struct ProductManifoldHMC{T<:Real} <: AbstractSampler
 end
 
 """
-    stretch_move(θ1, θ2,rng,a)
+    step(rng, model::BayesModel, sampler::ProductManifoldHMC,
+              state=nothing; kwargs...)
+
+One iteration of the product manifold HMC method.
+"""
+function step(rng, model::BayesModel, sampler::ProductManifoldHMC{T, P},
+              current_state=nothing; kwargs...) where P<:Parameter{T} where T<:Real
+
+    # First, generate an initial state if required
+    if (current_state == nothing)
+        θ0 = max_posterior(model, P(ones(dimension(model))))
+        θ1 = deepcopy(θ0)
+
+        # Move both points OFF the mode
+        # The mode of the distribution is a fixed point of the dynamics...
+        θ1.components = θ1.components + rand(rng, dimension(model))
+        θ0.components = θ0.components + rand(rng, dimension(model))
+        
+        η0 = legendre_dual(θ1, sampler.geometry, model)
+        state = ProductHMCState(θ0, η0)
+
+        return state.primal.components, state
+    end
+
+    # Sample using ProductHMC method
+    proposal_state = deepcopy(current_state)
+
+    # Save state
+    H_current = hamiltonian(current_state, sampler.geometry, model)
+    
+    # Stretch move in primal co-ordinates
+    θ2 = legendre_dual(proposal_state.dual, sampler.geometry, model)
+    logπ_old = logπ(model, θ2)
+    z = walk_move!(θ2, proposal_state.primal, rng, sampler.stretch_parameter)
+    proposal_state.dual = legendre_dual(θ2, sampler.geometry, model)
+
+    # # Accept/reject within the proposal
+    # logp = (dimension(model) - 1) * log(z) + logπ(model, θ2) - logπ_old
+    # if(logp > 0 || rand(rng) < exp(logp))
+    #     # Accept stretch move
+    #     state.dual = legendre_dual(θ2, sampler.geometry, model)
+    #     println("Stretch move accepted")
+    # else
+    #     println("Stretch move rejected")
+    # end
+
+    # Integrate using leapfrog
+    for i in 1:rand(rng, 1:sampler.L)
+        leapfrog!(proposal_state, sampler.ϵ, sampler.geometry, model)
+    end
+
+    # Swap primal and dual so that proposal is symmetric
+    swap_state!(proposal_state, sampler.geometry, model)
+
+    # Metropolis-Hastings accept / reject
+    H_proposal = hamiltonian(proposal_state, sampler.geometry, model)
+    logp = H_current - H_proposal        # Log acceptance probability
+
+    if((H_current > H_proposal) || rand(rng) < exp(logp))
+        # Accept
+        println("Hamiltonian flow accepted")
+        return proposal_state.primal.components, proposal_state
+    end
+
+    # For now, return primal components
+    println("Hamiltonian flow rejected")
+    return current_state.primal.components, current_state
+end
+
+"""
+    walk_move(θ1, θ2,rng,a)
 
 Implementation of the affine-invariant stretch move.
 """
-# function stretch_move!(θ1::P, θ2::P, rng::AbstractRNG, a=2.0) where P<:Parameter{T} where T<:Real
-#     # Inverse CDF for the z varianble in the stretch move.
-#     # This allows sampling using the stretch move.
-#     invcdf(u) = (u*(a-1) + 1)^2 / a
-
-#     # Sample the z variable using the inverse CDF defined above
-#     z = invcdf(rand(rng, Uniform()))
-
-#     # Update θ1 using the stretch move
-#     θ1.components = θ2.components + z * (θ1.components - θ2.components)
-# end
-
-"""
-    stretch_move(θ1, θ2)
-
-Implementation of the affine-invariant stretch move.
-"""
-function stretch_move!(θ1::P, θ2::P, a = 2.0) where P<:Parameter{T} where T<:Real
+function walk_move!(θ1::P, θ2::P, rng::AbstractRNG=Random.GLOBAL_RNG, a=2.0) where P<:Parameter{T} where T<:Real
     # Inverse CDF for the z varianble in the stretch move.
     # This allows sampling using the stretch move.
-    invcdf(u) = (u*(a-1) + 1)^2 / a
+    invcdf(u) = (u.*(a-1) .+ 1).^2 ./ a
 
     # Sample the z variable using the inverse CDF defined above
-    z = invcdf(rand(Uniform()))
+    z = invcdf(rand(rng, length(θ1.components)))
 
     # Update θ1 using the stretch move
-    θ1.components = θ2.components + z * (θ1.components - θ2.components)
+    θ1.components = θ2.components .+ z .* (θ1.components .- θ2.components)
+
+    return z
 end
 
 """
@@ -72,29 +127,28 @@ function show(io::IO, state::ProductHMCState)
 end
 
 """
-    leapfrog!(state::ProductHMCState, sampler::ProductManifoldHMC)
+    leapfrog!(state::ProductHMCState, sampler::ProductManifoldHMC, model::BayesModel)
 
 The leapfrog integrator used to integrate the Hamiltonian dynamics.
 """
-function leapfrog!(state::ProductHMCState, sampler::ProductManifoldHMC,
+function leapfrog!(state::ProductHMCState, ϵ::Real, geometry::Bregman,
                    model::BayesModel)
-    ϵ = sampler.ϵ
-    dHdθ, dHdη = grad_hamiltonian(state, sampler.geometry, model)
 
-    # Half-step in primal
-    state.primal.components = state.primal.components + 0.5 * ϵ * dHdη
+    # Half-step in dual
+    dHdθ, dHdη = grad_hamiltonian(state, geometry, model)
+    state.dual.components = state.dual.components - 0.5 * ϵ * dHdθ
 
-    # Full-step in dual
-    dHdθ, dHdη = grad_hamiltonian(state, sampler.geometry, model)
-    state.dual.components = state.primal.components - ϵ * dHdθ
+    # Full-step in primal
+    dHdθ, dHdη = grad_hamiltonian(state, geometry, model)
+    state.primal.components = state.primal.components + ϵ * dHdη
 
-    # Half-step in primal
-    dHdθ, dHdη = grad_hamiltonian(state, sampler.geometry, model)
-    state.primal.components = state.primal.components + 0.5 * ϵ * dHdη
+    # Half-step in dual
+    dHdθ, dHdη = grad_hamiltonian(state, geometry, model)
+    state.dual.components = state.dual.components - 0.5 * ϵ * dHdθ
 end
 
 """
-    swap_state!(state::ProductHMCState{T,G,P})
+    swap_state!(state, geometry, model)
 
 Swaps the primal-dual representation of points
 """

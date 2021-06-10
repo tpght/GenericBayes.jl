@@ -36,7 +36,7 @@ end
 
 Represents the Legendre dual co-ordinate
 """
-struct DualParameter{T<:Real, G<:Bregman, P<:Parameter{T}}<:Parameter{T}
+mutable struct DualParameter{T<:Real, G<:Bregman, P<:Parameter{T}}<:Parameter{T}
    components::Vector{T} 
 end
 
