@@ -55,18 +55,8 @@ function step(rng, model::BayesModel, sampler::ProductManifoldHMC{T, P},
     z = walk_move!(θ2, proposal_state.primal, rng, sampler.stretch_parameter)
     proposal_state.dual = legendre_dual(θ2, sampler.geometry, model)
 
-    # # Accept/reject within the proposal
-    # logp = (dimension(model) - 1) * log(z) + logπ(model, θ2) - logπ_old
-    # if(logp > 0 || rand(rng) < exp(logp))
-    #     # Accept stretch move
-    #     state.dual = legendre_dual(θ2, sampler.geometry, model)
-    #     println("Stretch move accepted")
-    # else
-    #     println("Stretch move rejected")
-    # end
-
     # Integrate using leapfrog
-    for i in 1:rand(rng, 1:sampler.L)
+    for i in 1:rand(1:sampler.L)
         leapfrog!(proposal_state, sampler.ϵ, sampler.geometry, model)
     end
 
@@ -79,12 +69,10 @@ function step(rng, model::BayesModel, sampler::ProductManifoldHMC{T, P},
 
     if((H_current > H_proposal) || rand(rng) < exp(logp))
         # Accept
-        println("Hamiltonian flow accepted")
         return proposal_state.primal.components, proposal_state
     end
 
     # For now, return primal components
-    println("Hamiltonian flow rejected")
     return current_state.primal.components, current_state
 end
 
