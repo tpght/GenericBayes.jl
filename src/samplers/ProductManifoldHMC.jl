@@ -171,13 +171,9 @@ function hamiltonian(state::ProductHMCState{T,G,P}, geometry::G,
 
     # Compute density of dual co-ordinate, including jacobian term
     H = H - logπ(model, θ_dual)
-
-    jac = metric(θ_dual, geometry, model)
-    logabsdetjac = log(abs(det(jac)))
-    H = H + logabsdetjac
+    H = H + logabsdetmetric(θ_dual, geometry, model)
 
     return H
-
 end
 
 """
@@ -194,10 +190,7 @@ P<:Parameter{T} where T<:Real
     θ2 = legendre_dual(state.dual, geometry, model)
     dHdθ2 = -∇logπ(model, θ2)
 
-
-    PrimalType = Base.typename(P).wrapper
-    proxy(x) = log(abs(det(metric(PrimalType(x), geometry, model))))
-    dHdθ2 = dHdθ2 + ForwardDiff.gradient(proxy, θ2.components)
+    dHdθ2 = dHdθ2 + grad_logabsdetmetric(θ2, geometry, model)
 
     Gθ2 = metric(θ2, geometry, model)
     dHdη = inv(Gθ2) * dHdθ2

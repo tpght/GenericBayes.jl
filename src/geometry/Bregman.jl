@@ -149,6 +149,29 @@ P<:Parameter{T} where T<:Real
 end
 
 """
+    logabsdetmetric(θ::Parameter{T}, geometry::Bregman, model::BayesModel)
+
+Compute the log absolute-value of the determinant of the Riemannian metric
+"""
+function logabsdetmetric(θ::Parameter{T}, geometry::Bregman, model::BayesModel) where
+T<:Real
+    return log(abs(det(metric(θ, geometry, model))))
+end
+
+"""
+    grad_logabsdetmetric(θ::Parameter{T}, geometry::Bregman, model::BayesModel)
+
+Compute the gradient of logabsdet of the Riemannian metric
+"""
+function grad_logabsdetmetric(θ::Parameter{T}, geometry::Bregman, model::BayesModel) where
+T<:Real
+
+    PrimalType = Base.typename(typeof(θ)).wrapper
+    proxy(x) = logabsdetmetric(PrimalType(x), geometry, model)
+    return ForwardDiff.gradient(proxy, θ.components)
+end
+
+"""
     Euclidean
 
 Dually flat Euclidean geometry. Primal and dual co-ordinates are identical.
@@ -185,7 +208,18 @@ P<:Parameter{T} where T<:Real where G<:Euclidean
     return P(η.components)
 end
 
-function dual_bregman_generator(θ::Parameter{T}, geometry::Bregman,
+function dual_bregman_generator(θ::Parameter{T}, geometry::Euclidean,
                                 model::BayesModel) where T<:Real
     return 0.5 * θ.components' * θ.components
+end
+
+function logabsdetmetric(θ::Parameter{T}, geometry::Euclidean, model::BayesModel) where
+T<:Real
+    return 0.0
+end
+
+function grad_logabsdetmetric(θ::Parameter{T}, geometry::Euclidean, model::BayesModel) where
+T<:Real
+
+    return zeros(dimension(model))
 end
