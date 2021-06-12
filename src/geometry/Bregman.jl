@@ -1,5 +1,5 @@
 using LinearAlgebra, ForwardDiff, Optim
-export Bregman, DualParameter, NegativeLogDensity
+export Bregman, DualParameter, NegativeLogDensity, Euclidean
 export legendre_dual, bregman_generator
 
 """
@@ -146,4 +146,46 @@ P<:Parameter{T} where T<:Real
     my_metric = metric(θ, geometry, model)
 
     inv(my_metric)
+end
+
+"""
+    Euclidean
+
+Dually flat Euclidean geometry. Primal and dual co-ordinates are identical.
+
+The Parameter P indicates the co-ordinate system in which the Riemannian metric
+is the identity.
+"""
+struct Euclidean{P<:Parameter}<:Bregman end
+
+function bregman_generator(θ::P, geometry::Euclidean{P}, model::BayesModel) where
+   P<:Parameter
+    0.5 * θ.components' * θ.components
+end
+
+function legendre_dual(θ::P, geometry::Euclidean{P}, model::BayesModel) where
+    P<:Parameter{T} where T<:Real
+    return DualParameter(θ.components, geometry, P)
+end
+
+function metric(θ::P, geometry::Euclidean{P}, model::BayesModel) where
+    P<:Parameter{T} where T<:Real
+    return diagm(ones(dimension(model)))
+end
+
+function metric(η::DualParameter{T, G, P}, geometry::G,
+                       model::BayesModel) where
+P<:Parameter{T} where T<:Real where G<:Euclidean
+    return diagm(ones(dimension(model)))
+end
+
+function legendre_dual(η::DualParameter{T, G, P}, geometry::G,
+                       model::BayesModel) where
+P<:Parameter{T} where T<:Real where G<:Euclidean
+    return P(η.components)
+end
+
+function dual_bregman_generator(θ::Parameter{T}, geometry::Bregman,
+                                model::BayesModel) where T<:Real
+    return 0.5 * θ.components' * θ.components
 end

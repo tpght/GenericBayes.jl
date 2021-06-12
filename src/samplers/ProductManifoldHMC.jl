@@ -49,13 +49,13 @@ function step(rng, model::BayesModel, sampler::ProductManifoldHMC{T, P},
     # Save state
     H_current = hamiltonian(current_state, sampler.geometry, model)
     
-    # Stretch move in primal co-ordinates
+    # Walk move in primal co-ordinates
     θ2 = legendre_dual(proposal_state.dual, sampler.geometry, model)
     logπ_old = logπ(model, θ2)
     z = walk_move!(θ2, proposal_state.primal, rng, sampler.stretch_parameter)
     proposal_state.dual = legendre_dual(θ2, sampler.geometry, model)
 
-    # Integrate using leapfrog
+    # Integrate using a random number of leapfrog steps
     for i in 1:rand(1:sampler.L)
         leapfrog!(proposal_state, sampler.ϵ, sampler.geometry, model)
     end
