@@ -7,11 +7,11 @@ import Distributions.sample
 import Plots.scatter!
 
 export Multinomial, BayesModel, Parameter
-export log_posterior_density, sufficient_statistic
+export log_posterior_density, sufficient_statistic, logπ
 export ∇logπ, grad_log_posterior_density
 export ∇²logπ, hessian_log_posterior_density
 export likelihood, loglikelihood, mle, max_posterior, prior_mode, prior, simulate
-export log_posterior_density
+export log_posterior_density, dimension
 
 export @vector_param, @reparam
 
@@ -246,9 +246,7 @@ function check_param(model::BayesModel, θ::Parameter)
 end
 
 # Include files from project
-include("models/ExponentialFamilies.jl")
-include("models/LinearGaussian.jl")
-include("models/Forward.jl")
+include("models/Models.jl")
 include("vis/Density.jl")
 include("geometry/Geometry.jl")
 include("samplers/Samplers.jl")

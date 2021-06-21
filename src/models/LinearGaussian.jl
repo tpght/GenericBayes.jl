@@ -35,7 +35,7 @@ mle(model::LinearGaussian, ::GaussianParam) = GaussianParam(mean(model.y, dims=2
 mle(model::LinearGaussian, ::Type{GaussianParam}) = GaussianParam(mean(model.y, dims=2)[:,1])
 dimension(model::LinearGaussian) = length(model.μ_p)
 
-function map(model::LinearGaussian, ::GaussianParam)
+function max_posterior(model::LinearGaussian, ::GaussianParam)
     Q = inv(model.Σ)
     Q_p = inv(model.Σ_p)
     n = sample_size(model)

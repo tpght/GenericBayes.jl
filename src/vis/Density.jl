@@ -10,7 +10,7 @@ function quantile_contour2D(model::BayesModel, ParameterType::Type{<:Parameter},
     post(x1, x2) = -log_posterior_density(model, ParameterType([x1, x2]))
 
     # Compute contours using Laplace approximation (see thesis)
-    nlpd_at_map = -log_posterior_density(model, map(model, ParameterType(ones(2))))
+    nlpd_at_map = -log_posterior_density(model, max_posterior(model, ParameterType(ones(2))))
     levels =  nlpd_at_map .+ quantile.(Chisq(dimension(model) - 1), p)
 
     contour(xrange,yrange,post, levels=levels, title="Log Posterior Density")

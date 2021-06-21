@@ -183,7 +183,7 @@ struct Euclidean{P<:Parameter}<:Bregman end
 
 function bregman_generator(θ::P, geometry::Euclidean{P}, model::BayesModel) where
    P<:Parameter
-    0.5 * θ.components' * θ.components
+   return 0.5 * θ.components' * θ.components
 end
 
 function legendre_dual(θ::P, geometry::Euclidean{P}, model::BayesModel) where
