@@ -28,7 +28,7 @@ state = ProductHMCState(θ1, legendre_dual(θ2, geometry, model))
 @show grad_hamiltonian(state, geometry, model)
 
 # Test leapfrog
-method = ProductManifoldHMC{Float64, GaussianParam{Float64}}(geometry, 0.1, 25, 1.5)
+method = ProductManifoldHMC{Float64, GaussianParam{Float64}}(geometry, 0.0001, 10, 1.1)
 samples = sample(model, method, 5000, chain_type=MCMCChains.Chains)
 chains = Chains(samples)
 

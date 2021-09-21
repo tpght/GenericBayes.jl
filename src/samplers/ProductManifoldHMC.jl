@@ -34,11 +34,12 @@ function step(rng, model::BayesModel, sampler::ProductManifoldHMC{T, P},
 
         # Move both points OFF the mode
         # The mode of the distribution is a fixed point of the dynamics...
-        θ1.components = θ1.components + rand(rng, dimension(model))
-        θ0.components = θ0.components + rand(rng, dimension(model))
+        # TODO: Use the hessian here to move according to scale?
+        θ1.components = θ1.components + 1.0 * rand(rng, dimension(model))
+        θ0.components = θ0.components + 1.0 * rand(rng, dimension(model))
         
-        η0 = legendre_dual(θ1, sampler.geometry, model)
-        state = ProductHMCState(θ0, η0)
+        η1 = legendre_dual(θ1, sampler.geometry, model)
+        state = ProductHMCState(θ0, η1)
 
         return state.primal.components, state
     end
@@ -46,22 +47,24 @@ function step(rng, model::BayesModel, sampler::ProductManifoldHMC{T, P},
     # Sample using ProductHMC method
     proposal_state = deepcopy(current_state)
 
-    # Save state
+    # Save Hamiltonian at current state
     H_current = hamiltonian(current_state, sampler.geometry, model)
-    
-    # Walk move in primal co-ordinates
-    θ2 = legendre_dual(proposal_state.dual, sampler.geometry, model)
-    logπ_old = logπ(model, θ2)
-    z = walk_move!(θ2, proposal_state.primal, rng, sampler.stretch_parameter)
-    proposal_state.dual = legendre_dual(θ2, sampler.geometry, model)
 
+    # Walk move in dual co-ordinates
+    # η1 = legendre_dual(proposal_state.primal, sampler.geometry, model)
+    # z = walk_move!(proposal_state.dual, η1, rng, sampler.stretch_parameter)
+
+    θ1 = legendre_dual(proposal_state.dual, sampler.geometry, model)
+    z = walk_move!(θ1, proposal_state.primal, rng, sampler.stretch_parameter)
+    proposal_state.dual = legendre_dual(θ1, sampler.geometry, model)
+    
     # Integrate using a random number of leapfrog steps
-    for i in 1:rand(1:sampler.L)
+    for i in 1:sampler.L
         leapfrog!(proposal_state, sampler.ϵ, sampler.geometry, model)
     end
 
     # Swap primal and dual so that proposal is symmetric
-    swap_state!(proposal_state, sampler.geometry, model)
+    # swap_state!(proposal_state, sampler.geometry, model)
 
     # Metropolis-Hastings accept / reject
     H_proposal = hamiltonian(proposal_state, sampler.geometry, model)
@@ -81,10 +84,10 @@ end
 
 Implementation of the affine-invariant stretch move.
 """
-function walk_move!(θ1::P, θ2::P, rng::AbstractRNG=Random.GLOBAL_RNG, a=2.0) where P<:Parameter{T} where T<:Real
+function walk_move!(θ1::P, θ2::P, rng::AbstractRNG=Random.GLOBAL_RNG, a=1.5) where P<:Parameter{T} where T<:Real
     # Inverse CDF for the z varianble in the stretch move.
     # This allows sampling using the stretch move.
-    invcdf(u) = (u.*(a-1) .+ 1).^2 ./ a
+    invcdf(u) =  (a / (1.0 + a)).*(-1.0 .+ 2.0 .* u .+ a .* u.^2)
 
     # Sample the z variable using the inverse CDF defined above
     z = invcdf(rand(rng, length(θ1.components)))

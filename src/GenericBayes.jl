@@ -108,49 +108,6 @@ upper_box(model::BayesModel, P::Type{<:Parameter}) = [Inf for i in 1:dimension(m
 """ Log absolute-value of the determinant of the jacobian matrix of a change of parameterization. """
 logabsdetjac(model::BayesModel, θ::Parameter) = log(abs(det(jacobian())))
 
-"""
-    log_posterior_density(model, θ)
-
-The (natural) log of the posterior probability density of `model` up to additive constant.
-
-Alias function names: `lpd` and `logπ`.
-"""
-function log_posterior_density(model::BayesModel, θ::Parameter) end
-const lpd = log_posterior_density
-const logπ = log_posterior_density
-
-"""
-    grad_log_posterior_density(model, θ)
-
-Vector of partial derivatives of `log_posterior_density` with respect to components of `θ`.
-
-Default uses automatic differentiation.
-Alias function names: `∇logπ`.
-"""
-function grad_log_posterior_density(model::BayesModel, θ::Parameter)
-    # Default uses autodiff
-    ParameterType = Base.typename(typeof(θ)).wrapper
-    proxy(x) = log_posterior_density(model, ParameterType(x))
-    ForwardDiff.gradient(proxy, Array(θ))
-end
-const ∇logπ = grad_log_posterior_density
-
-"""
-    hessian_log_posterior_density(model, θ)
-
-Matrix of second-order partial derivatives of `log_posterior_density` with
-respect to components of `θ`.
-
-Default uses automatic differentiation.
-Alias function names: `∇²logπ`.
-"""
-function hessian_log_posterior_density(model::BayesModel, θ::Parameter)
-    # Default uses autodiff
-    ParameterType = Base.typename(typeof(θ)).wrapper
-    proxy(x) = log_posterior_density(model, ParameterType(x))
-    ForwardDiff.hessian(proxy, Array(θ))
-end
-const ∇²logπ = hessian_log_posterior_density
 
 """
     mle(model, θ, data)

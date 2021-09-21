@@ -15,8 +15,7 @@ Rosenbrock() = Rosenbrock{Float64}(1.0, 100.0)
 @vector_param RosenbrockParameter
 
 function log_posterior_density(model::Rosenbrock, θ::RosenbrockParameter)
-    -(model.a - θ.components[1])^2 - model.b *
-        (θ.components[2] - θ.components[1])^2
+    -(model.a - θ.components[1])^2 - model.b * (θ.components[2] - θ.components[1]^2)^2
 end
 
 dimension(model::Rosenbrock) = 2 # For now

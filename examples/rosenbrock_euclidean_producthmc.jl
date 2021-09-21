@@ -14,10 +14,14 @@ state = ProductHMCState(θ1, legendre_dual(θ1, geometry, model))
 @show grad_hamiltonian(state, geometry, model)
 
 # Test leapfrog
-leapfrog!(state, 0.001, geometry, model)
+for i in 1:1000
+    leapfrog!(state, 0.00001, geometry, model)
+end
+
+@show hamiltonian(state, geometry, model)
 
 # Test sampler
-method = ProductManifoldHMC{Float64, typeof(θ1)}(geometry, 0.001, 1000, 1.00)
+method = ProductManifoldHMC{Float64, typeof(θ1)}(geometry, 0.00001, 1000, 1.5)
 samples = sample(model, method, 5000, chain_type=MCMCChains.Chains)
 chain = Chains(samples)
 @show(ess(chain))
