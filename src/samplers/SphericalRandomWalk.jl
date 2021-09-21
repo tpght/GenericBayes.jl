@@ -1,13 +1,12 @@
-import AbstractMCMC.AbstractSampler, Base.show, AbstractMCMC.step
+import AbstractMCMC.AbstractSampler, AbstractMCMC.step
 export SphericalRandomWalk
-using Distributions
 
 """
     SphericalRandomWalk
 
 Random walk, Gaussian proposal with a spherical covariance.
 """
-struct SphericalRandomWalk{T<:Real, P<:Parameter{T}} <: AbstractSampler
+struct SphericalRandomWalk{T<:Real} <: AbstractSampler
     StepSize::T                 # Standard deviation of random walk proposal
 end
 
@@ -15,28 +14,28 @@ end
     step(rng, model::BayesModel, sampler::ProductManifoldHMC,
               state=nothing; kwargs...)
 
-One iteration of the product manifold HMC method.
+One iteration of the random walk metropolis method.
 """
-function step(rng, model::BayesModel, sampler::SphericalRandomWalk{T, P},
-              current_state=nothing; kwargs...) where P<:Parameter{T} where T<:Real
+function step(rng, model::BayesModel, sampler::SphericalRandomWalk{T},
+              current_state=nothing; kwargs...) where T<:Real
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = P(zeros(dimension(model)))
-        return state.components, state
+        state = max_posterior(model, zeros(dimension(model)))
+        return state, state
     end
 
     # Generate a proposal
-    proposal = current_state.components +
+    proposal = current_state .+
         rand(rng, MvNormal(dimension(model), sampler.StepSize))
 
     # Accept / reject
-    logp = logπ(model, P(proposal)) - logπ(model, current_state)
+    logp = logπ(model, proposal) - logπ(model, current_state)
 
     if(logp > 0  || log(rand(rng)) < logp)
         # accept
-        return proposal, P(proposal)
+        return proposal, proposal
     end
 
     # reject
-    return current_state.components, current_state
+    return current_state, current_state
 end

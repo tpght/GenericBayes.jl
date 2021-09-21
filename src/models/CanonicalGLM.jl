@@ -1,5 +1,4 @@
-export inverse_canonical_link, CanonicalGLM, GLM, CoefficientVector
-using StatsFuns
+export inverse_canonical_link, CanonicalGLM, GLM
 
 """
     GLM
@@ -15,6 +14,7 @@ struct CanonicalGLM{D, T<:Real}<:GLM{D}
     Σ_p::Array{T, 2}        # p x p prior covariance
 end
 
+dimension(model::CanonicalGLM) = size(model.X)[2]
 
 """
     inverse_canonical_link
@@ -26,14 +26,12 @@ function inverse_canonical_link(D::Type{<:Distribution}, θ::Real) end
 inverse_canonical_link(::Type{Poisson}, θ::Real) = exp(θ)
 inverse_canonical_link(::Type{Bernoulli}, θ::Real) = logistic(θ)
 
-@vector_param CoefficientVector
-
-function prior(model::CanonicalGLM, ::Type{CoefficientVector})
+function prior(model::CanonicalGLM)
     MvNormal(model.μ_p, model.Σ_p)
 end
 
-function loglikelihood(model::CanonicalGLM{D}, β::CoefficientVector) where D<:Distribution
+function loglikelihood(model::CanonicalGLM{D}, β) where D<:Distribution
     linear_comb = model.X * β
-    data_generator = Product(D.(inverse_canonical_link.(linear_comb)))
-    logpdf()
+    mean = inverse_canonical_link.(D, linear_comb)
+    data_generator = loglikelihood(Product(D.(mean)), model.y)
 end

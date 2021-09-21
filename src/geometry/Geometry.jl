@@ -8,12 +8,10 @@ Parent type for different geometries.
 abstract type Geometry end
 
 """
-    metric(θ::Parameter{T}, geometry::Bregman, model::BayesModel)
+    metric(θ, geometry::Bregman, model::BayesModel)
 
-Compute the Riemannian metric tensor in co-ordinate system defined by Parameter
+Compute the Riemannian metric tensor
 """
-function metric(θ::Parameter{T}, geometry::Geometry, model::BayesModel) where
-    T<:Real end
+function metric(θ, geometry::Geometry, model::BayesModel) where T<:Real end
 
-# Include files implementing geometries
 include("Bregman.jl")
