@@ -36,11 +36,22 @@ end
 Compute the Legendre dual, i.e. the gradient of `bregman_generator`.
 
 Default uses automatic differentiation.
+Optional parameter k returns mixed co-ordinates (η, θ), where η are the first k
+dual co-ordinates.
 """
 function legendre_dual(θ, geometry::Bregman, model::BayesModel)
     # First compute the gradient as a vector
     proxy(x) = bregman_generator(x, geometry, model)
     ForwardDiff.gradient(proxy, θ)
+end
+
+function legendre_dual(θ, geometry::Bregman, model::BayesModel, k::Int)
+    p = length(θ)
+    primal = θ[(k+1):p]
+    # Differentiate
+    proxy(x) = bregman_generator([x; primal], geometry, model)
+    η = ForwardDiff.gradient(proxy, θ[1:k])
+    [η; primal]
 end
 
 """
@@ -50,6 +61,8 @@ Compute the Legendre dual to η, i.e. the primal vector θ such that
 legendre_dual(θ, geometry, model) = η.
 
 Default uses automatic differentiation.
+Optional parameter k returns primal co-ordinates corresponding to mixed
+co-ordinates (η, θ), where η are the first k dual co-ordinates.
 """
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
                                model::BayesModel) where G<:Bregman where T<:Real
@@ -74,6 +87,44 @@ function inverse_legendre_dual(η::Vector{T}, geometry::G,
 
     return Optim.minimizer(result)
 end
+
+# function inverse_legendre_dual(ξ::Vector{T}, geometry::G,
+#                                model::BayesModel, k::Int) where G<:Bregman where T<:Real
+
+#     # TODO Find an appropriate initial point x0
+#     # TODO Fix this function! Use ConstrainedOptim.jl
+#     p = length(ξ)
+#     primal = ξ[(k+1):p]
+#     dual = ξ[1:k]
+
+#     # Define cost function
+#     full(x) = [x; primal]
+#     proxy(x) = bregman_generator([x; primal], geometry, model)
+#     ∇F(x) = ForwardDiff.gradient(proxy, x) # First k dual components
+#     ℒ(x, λ) = bregman_generator(full(x), geometry, model) -
+#         x' * dual -
+#         primal' * ∇F(x) -
+#         sum(λ .* (∇F(x) - dual))
+
+#     function ℒ(L, z)
+#         ℒ(z[1:k], z[(k+1):(2*k)])
+#     end
+
+#     # Optimize the function
+#     # lower = lower_box(model, P)
+#     # upper = upper_box(model, P)
+#     result = nlsolve(ℒ(z), ones(T, 2*k), LBFGS(); autodiff=:forward)
+
+#     if(Optim.converged(result) == false)
+#         @show Optim.converged(result)
+#         @show Optim.iterations(result)
+#         @show Optim.iteration_limit_reached(result)
+#         error("Could not convert from mixed to primal co-ordinates")
+#     end
+
+#     θ = Optim.minimizer(result)
+#     [θ; primal]
+# end
 
 """
     dual_bregman_generator(θ, geometry, model)
