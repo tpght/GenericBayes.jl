@@ -1,4 +1,4 @@
-export metric
+export metric, logabsdetmetric
 
 """
     Geometry

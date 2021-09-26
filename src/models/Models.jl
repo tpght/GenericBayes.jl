@@ -1,3 +1,5 @@
+export LogDensityModel
+
 """
     prior
 
@@ -18,21 +20,32 @@ end
 const lpd = log_posterior_density
 const logπ = log_posterior_density
 
-# """
-#     grad_log_posterior_density(model, θ)
+"""
+    LogDensityModel
 
-# Vector of partial derivatives of `log_posterior_density` with respect to components of `θ`.
+Simplest type of model; defines a log-density function.
+"""
+struct LogDensityModel <: BayesModel
+    log_density::Function
+    dimension::Int
+end
 
-# Default uses automatic differentiation.
-# Alias function names: `∇logπ`.
-# """
-# function grad_log_posterior_density(model::BayesModel, θ::Parameter)
-#     # Default uses autodiff
-#     ParameterType = Base.typename(typeof(θ)).wrapper
-#     proxy(x) = log_posterior_density(model, ParameterType(x))
-#     ForwardDiff.gradient(proxy, Array(θ))
-# end
-# const ∇logπ = grad_log_posterior_density
+log_posterior_density(model::LogDensityModel, θ) = model.log_density(θ)
+dimension(model::LogDensityModel) = model.dimension
+
+"""
+    grad_log_posterior_density(model, θ)
+
+Vector of partial derivatives of `log_posterior_density` with respect to components of `θ`.
+
+Default uses automatic differentiation.
+Alias function names: `∇logπ`.
+"""
+function grad_log_posterior_density(model::BayesModel, θ)
+    # Default uses autodiff
+    ForwardDiff.gradient(x -> log_posterior_density(model, x), θ)
+end
+const ∇logπ = grad_log_posterior_density
 
 # """
 #     hessian_log_posterior_density(model, θ)

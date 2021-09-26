@@ -45,13 +45,15 @@ function legendre_dual(θ, geometry::Bregman, model::BayesModel)
     ForwardDiff.gradient(proxy, θ)
 end
 
+legendre_dual(θ, generator::Function) = ForwardDiff.gradient(generator, θ)
+
 function legendre_dual(θ, geometry::Bregman, model::BayesModel, k::Int)
-    p = length(θ)
-    primal = θ[(k+1):p]
-    # Differentiate
-    proxy(x) = bregman_generator([x; primal], geometry, model)
-    η = ForwardDiff.gradient(proxy, θ[1:k])
-    [η; primal]
+    legendre_dual(θ, x -> bregman_generator(x, geometry, model), k)
+end
+
+function legendre_dual(θ, generator::Function, k::Int)
+    proxy(x) = generator([x; θ[(k+1):end]])
+    [ForwardDiff.gradient(proxy, θ[1:k]); θ[(k+1):end]]
 end
 
 """
@@ -64,67 +66,54 @@ Default uses automatic differentiation.
 Optional parameter k returns primal co-ordinates corresponding to mixed
 co-ordinates (η, θ), where η are the first k dual co-ordinates.
 """
-function inverse_legendre_dual(η::Vector{T}, geometry::G,
-                               model::BayesModel) where G<:Bregman where T<:Real
-
-    # TODO Find an appropriate initial point x0
-    x0 = ones(T, size(η, 1))
-
-    # Define cost function
-    proxy(x) = bregman_generator(x, geometry, model) - x' * η
-
-    # Optimize the function
-    # lower = lower_box(model, P)
-    # upper = upper_box(model, P)
-    result = optimize(proxy, x0, LBFGS(); autodiff=:forward)
-
-    if(Optim.converged(result) == false)
-        @show Optim.converged(result)
-        @show Optim.iterations(result)
-        @show Optim.iteration_limit_reached(result)
-        error("Could not convert from dual to primal co-ordinates")
-    end
-
-    return Optim.minimizer(result)
+function inverse_legendre_dual(η::Vector{T}, generator::Function) where T<:Real
+    inverse_legendre_dual(η, generator, length(η))
 end
 
-# function inverse_legendre_dual(ξ::Vector{T}, geometry::G,
-#                                model::BayesModel, k::Int) where G<:Bregman where T<:Real
+function inverse_legendre_dual(η::Vector{T}, geometry::G,
+                               model::BayesModel) where G<:Bregman where T<:Real
+    inverse_legendre_dual(η, x->bregman_generator(x, G, model))
+end
 
-#     # TODO Find an appropriate initial point x0
-#     # TODO Fix this function! Use ConstrainedOptim.jl
-#     p = length(ξ)
-#     primal = ξ[(k+1):p]
-#     dual = ξ[1:k]
 
-#     # Define cost function
-#     full(x) = [x; primal]
-#     proxy(x) = bregman_generator([x; primal], geometry, model)
-#     ∇F(x) = ForwardDiff.gradient(proxy, x) # First k dual components
-#     ℒ(x, λ) = bregman_generator(full(x), geometry, model) -
-#         x' * dual -
-#         primal' * ∇F(x) -
-#         sum(λ .* (∇F(x) - dual))
+function inverse_legendre_dual(η::Vector{T}, geometry::G,
+                               model::BayesModel, k::Int) where G<:Bregman where T<:Real
+    inverse_legendre_dual(η, x->bregman_generator(x, G, model), k)
+end
 
-#     function ℒ(L, z)
-#         ℒ(z[1:k], z[(k+1):(2*k)])
-#     end
+function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
+                               k::Int; x0=nothing) where T<:Real
+    primal = ξ[(k+1):end]
+    η_k = ξ[1:k]
 
-#     # Optimize the function
-#     # lower = lower_box(model, P)
-#     # upper = upper_box(model, P)
-#     result = nlsolve(ℒ(z), ones(T, 2*k), LBFGS(); autodiff=:forward)
+    if(x0 == nothing) x0 = primal[1] * ones(T, k)
+    else
+        # Seemingly have to do this to convert to type T (autodiff types)
+        x0 = zeros(T,k) + x0
+    end
 
-#     if(Optim.converged(result) == false)
-#         @show Optim.converged(result)
-#         @show Optim.iterations(result)
-#         @show Optim.iteration_limit_reached(result)
-#         error("Could not convert from mixed to primal co-ordinates")
-#     end
+    # Define cost function
+    full_primal(x) = [x; primal]
+    proxy(x) = generator(full_primal(x)) - x' * η_k
 
-#     θ = Optim.minimizer(result)
-#     [θ; primal]
-# end
+    function gradient_proxy!(g, x)
+        g = legendre_dual(full_primal(x), generator, k)[1:k] - η_k
+    end
+
+    # Optimize the function
+    method = LBFGS(linesearch=BackTracking())
+    result = optimize(proxy, gradient_proxy!, x0, method=method; autodiff=:forward,
+                      g_tol=0.0, x_tol=1e-5, f_tol=1e-5)
+
+    if(Optim.converged(result) == false)
+        @show result
+        # @show k
+        error("Could not convert from mixed to primal co-ordinates")
+    end
+
+    θ = Optim.minimizer(result)
+    [θ; primal]
+end
 
 """
     dual_bregman_generator(θ, geometry, model)
@@ -142,10 +131,9 @@ end
 
 Compute the Riemannian metric, i.e. the hessian of `bregman_generator`.
 """
-function metric(θ, geometry::Bregman, model::BayesModel) where T<:Real
-    # Default uses autodiff
-    proxy(x) = bregman_generator(x, geometry, model)
-    ForwardDiff.hessian(proxy, θ)
+metric(θ, generator::Function) = ForwardDiff.hessian(generator, θ)
+function metric(θ, geometry::Bregman, model::BayesModel)
+    metric(θ, x -> bregman_generator(x, geometry, model))
 end
 
 # """
@@ -171,8 +159,15 @@ end
 
 Compute the log absolute-value of the determinant of the Riemannian metric
 """
+logabsdetmetric(θ, generator::Function) = logabsdet(metric(θ, generator))[1]
 function logabsdetmetric(θ, geometry::Bregman, model::BayesModel)
-    return log(abs(det(metric(θ, geometry, model))))
+    return logabsdet(metric(θ, geometry, model))[1]
+end
+
+# Returns logabsdet of upper-left k × k block of the metric
+function logabsdetmetric(θ, generator::Function, k::Int)
+    proxy(x) = generator([x; θ[(k+1):end]])
+    logabsdet(ForwardDiff.hessian(proxy, θ[1:k]))[1]
 end
 
 # """
@@ -198,13 +193,10 @@ is the identity.
 """
 struct Euclidean<:Bregman end
 
-function bregman_generator(θ, geometry::Euclidean, model::BayesModel)
-   return 0.5 * θ' * θ
-end
+bregman_generator(θ, geometry::Euclidean, model::BayesModel) = 0.5 * θ' * θ
 
-function legendre_dual(θ, geometry::Euclidean, model::BayesModel)
-    return θ
-end
+legendre_dual(θ, geometry::Euclidean, model::BayesModel) = θ
+inverse_legendre_dual(θ, geometry::Euclidean, model::BayesModel) = θ
 
 # function metric(θ::P, geometry::Euclidean{P}, model::BayesModel) where
 #     P<:Parameter{T} where T<:Real
