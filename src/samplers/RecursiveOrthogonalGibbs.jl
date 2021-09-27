@@ -24,7 +24,7 @@ function step(rng, model::BayesModel, sampler::RecursiveOrthogonalGibbs,
               current_state=nothing; kwargs...) where T<:Real
     # Check if l divides p
     if (dimension(model) % sampler.l != 0)
-        error("RecursiveOrthogonalGibbs: k does not divide model dimension")
+        error("RecursiveOrthogonalGibbs: l does not divide model dimension")
     end
 
     # First, generate an initial state if required

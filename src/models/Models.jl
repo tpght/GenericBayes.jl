@@ -70,3 +70,4 @@ const ∇logπ = grad_log_posterior_density
 # include("Forward.jl")
 # include("Rosenbrock.jl")
 include("CanonicalGLM.jl")
+include("SimpleGaussian.jl")

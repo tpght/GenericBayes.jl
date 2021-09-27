@@ -26,7 +26,7 @@ function step(rng, model::BayesModel, sampler::SphericalRandomWalk{T},
 
     # Generate a proposal
     proposal = current_state .+
-        rand(rng, MvNormal(dimension(model), sampler.StepSize))
+        rand(rng, Normal(0.0, sampler.StepSize), dimension(model))
 
     # Accept / reject
     logp = logπ(model, proposal) - logπ(model, current_state)

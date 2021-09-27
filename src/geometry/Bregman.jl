@@ -72,13 +72,13 @@ end
 
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
                                model::BayesModel) where G<:Bregman where T<:Real
-    inverse_legendre_dual(η, x->bregman_generator(x, G, model))
+    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model))
 end
 
 
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
                                model::BayesModel, k::Int) where G<:Bregman where T<:Real
-    inverse_legendre_dual(η, x->bregman_generator(x, G, model), k)
+    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model), k)
 end
 
 function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
@@ -86,7 +86,8 @@ function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
     primal = ξ[(k+1):end]
     η_k = ξ[1:k]
 
-    if(x0 == nothing) x0 = primal[1] * ones(T, k)
+    if(x0 == nothing)
+        x0 = zeros(T, k)
     else
         # Seemingly have to do this to convert to type T (autodiff types)
         x0 = zeros(T,k) + x0
@@ -98,12 +99,14 @@ function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
 
     function gradient_proxy!(g, x)
         g = legendre_dual(full_primal(x), generator, k)[1:k] - η_k
+        @show g
     end
 
     # Optimize the function
-    method = LBFGS(linesearch=BackTracking())
-    result = optimize(proxy, gradient_proxy!, x0, method=method; autodiff=:forward,
-                      g_tol=0.0, x_tol=1e-5, f_tol=1e-5)
+    # NOTE: passing gradient_proxy! above seems to stop the algorithm converging...
+    method = LBFGS()
+    result = optimize(proxy, x0, method=method; autodiff=:forward,
+                      g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
 
     if(Optim.converged(result) == false)
         @show result
