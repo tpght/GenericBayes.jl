@@ -1,12 +1,12 @@
 import AbstractMCMC.AbstractSampler, AbstractMCMC.step
-export RecursiveOrthogonalGibbs
+export ERecursiveOrthogonalGibbs
 
 """
-    RecursiveOrthogonalGibbs
+    ERecursiveOrthogonalGibbs
 
-Random walk, Gaussian proposal with a spherical covariance.
+Orthogonal Gibbs, recursing on e-flat submanifolds.
 """
-struct RecursiveOrthogonalGibbs <: AbstractSampler
+struct ERecursiveOrthogonalGibbs <: AbstractSampler
     geometry::Bregman           # Geometry to be used in the sampler
     l::Int                      # Dimension of the m-flat submanifold
     subsampler::AbstractSampler # Sampler to be used on each m-flat submanifold
@@ -18,9 +18,9 @@ end
     step(rng, model::BayesModel, sampler::ProductManifoldHMC,
               state=nothing; kwargs...)
 
-One iteration of the random walk metropolis method.
+One iteration of the e-recursive orthogonal gibbs method.
 """
-function step(rng, model::BayesModel, sampler::RecursiveOrthogonalGibbs,
+function step(rng, model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
               current_state=nothing; kwargs...) where T<:Real
     # Check if l divides p
     if (dimension(model) % sampler.l != 0)
@@ -41,7 +41,7 @@ function step(rng, model::BayesModel, sampler::RecursiveOrthogonalGibbs,
     """
     function OrthogonalGibbs(log_density::Function, θ0::Vector{<:Real}, generator::Function)
         # Check if we're on the last e-flat submanifold
-        if(length(θ0) == sampler.l)
+        if(length(θ0) <= sampler.l)
             # Sample on the remaining l variables
             samples = AbstractMCMC.sample(rng, LogDensityModel(log_density, sampler.l), sampler.subsampler,
                    sampler.subsamples, progress=false)

@@ -1,3 +1,4 @@
 # include("ProductManifoldHMC.jl")
 include("SphericalRandomWalk.jl")
-include("RecursiveOrthogonalGibbs.jl")
+include("ERecursiveOrthogonalGibbs.jl")
+include("OrthogonalNaturalGradient.jl")

@@ -8,7 +8,7 @@ N = 1000                        # Number of samples
 subsampler = SphericalRandomWalk(2.38 * sqrt(1.0 - ρ^2))
 subsamples = Int(5000)
 l = 1                           # Dimension of embedded m-flat submanifold
-sampler = RecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
 
 samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)
 chain = Chains(samples)

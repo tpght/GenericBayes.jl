@@ -11,14 +11,16 @@ y = rand(Product(Bernoulli.(μ)))
 
 # Build model
 ρ = 0.99
-Σ = [1.0 ρ; ρ 1.0]
+Σ = diagm(ones(p))
+Σ[2,1] = ρ
+Σ[1,2] = ρ
 model = CanonicalGLM{Bernoulli, Float64}(X, y, zeros(p), Σ)
 
 N = 1000                        # Number of samples
-subsampler = SphericalRandomWalk(0.001)
-subsamples = Int(5000)
-l = 1                           # Dimension of embedded m-flat submanifold
-sampler = RecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+subsampler = SphericalRandomWalk(0.5)
+subsamples = Int(1000)
+l = 2                           # Dimension of embedded m-flat submanifold
+sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
 
 samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)
 chain = Chains(samples)
