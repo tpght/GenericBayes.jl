@@ -66,8 +66,8 @@ Default uses automatic differentiation.
 Optional parameter k returns primal co-ordinates corresponding to mixed
 co-ordinates (η, θ), where η are the first k dual co-ordinates.
 """
-function inverse_legendre_dual(η::Vector{T}, generator::Function) where T<:Real
-    inverse_legendre_dual(η, generator, length(η))
+function inverse_legendre_dual(η::Vector{T}, generator::Function; x0=nothing) where T<:Real
+    inverse_legendre_dual(η, generator, length(η), x0=x0)
 end
 
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
@@ -104,9 +104,9 @@ function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
 
     # Optimize the function
     # NOTE: passing gradient_proxy! above seems to stop the algorithm converging...
-    method = LBFGS()
+    method = LBFGS(linesearch=BackTracking())
     result = optimize(proxy, x0, method=method; autodiff=:forward,
-                      g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
+                      g_tol=1e-10, x_tol=1e-2, f_tol=1e-10)
 
     if(Optim.converged(result) == false)
         @show result
