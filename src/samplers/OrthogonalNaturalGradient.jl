@@ -72,6 +72,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalNaturalGradient,
 
         # samples[end] is now the resampled parameter along the dual geodesic.
         # Convert to a primal co-ordinate.
+        @show samples[end]
         θ1 = inverse_legendre_dual(dg(samples[end]), generator, x0 = θ0)
 
         # Construct a basis for the space orthogonal to gradient

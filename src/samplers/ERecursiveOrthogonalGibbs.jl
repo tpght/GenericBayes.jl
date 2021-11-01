@@ -49,6 +49,7 @@ function step(rng, model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
             return samples[end]
         end
 
+        # If sampler.l is small, then k is potentially large.
         k = length(θ0) - sampler.l
 
         # First, sample on the m-flat submanifold defined by first length(θ0) - l dual

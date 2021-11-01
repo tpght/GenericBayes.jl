@@ -17,8 +17,8 @@ y = rand(Product(Bernoulli.(μ)))
 model = CanonicalGLM{Bernoulli, Float64}(X, y, zeros(p), Σ)
 
 N = 1000                        # Number of samples
-subsampler = SphericalRandomWalk(2.38)
-subsamples = Int(1000)
+subsampler = AdaptiveRejectionSampler()
+subsamples = Int(1)
 sampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
 
 samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)
@@ -30,3 +30,12 @@ end
 
 pyplot()
 autocorplot(chain)
+
+HMC = HamiltonianMonteCarlo(true, 1000)
+HMCsamples, stats = sample(model, HMC, N, chain_type=MCMCChains.Chains, progress=true)
+HMCchain = Chains(HMCsamples)
+autocorplot(HMCchain)
+
+if(p == 2)
+    plot(model, HMCsamples, 1.0)
+end

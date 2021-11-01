@@ -36,11 +36,11 @@ function step(rng, model::BayesModel, sampler::MRescursiveOrthogonalGibbs,
     """
         OrthogonalGibbs
 
-    Performs the OrthogonalGibbs method by sampling on a k-dimensional m-flat then
-    e-flat submanifold
+    Performs the OrthogonalGibbs method by sampling on a k-dimensional e-flat then
+    m-flat submanifold
     """
     function OrthogonalGibbs(log_density::Function, θ0::Vector{<:Real}, generator::Function)
-        # Check if we're on the last e-flat submanifold
+        # Check if we're on the last m-flat submanifold
         if(length(θ0) <= sampler.k)
             # Sample on the remaining l variables
             samples = AbstractMCMC.sample(rng, LogDensityModel(log_density, sampler.l), sampler.subsampler,
@@ -56,14 +56,15 @@ function step(rng, model::BayesModel, sampler::MRescursiveOrthogonalGibbs,
         # a k-dimensional hyperplane.
         restricted_log_density(x) = log_density([x; θ0[(k+1):end]])
         samples = AbstractMCMC.sample(rng,
-                                      LogDensityModel(restricted_log_density, k),
+                                      LogDensityModel(restricted_log_density, sampler.k),
                                       sample.subsampler, sampler.subsamples, progress=false)
 
         # Take the final sample
         θ1 = [samples[end]; θ0[(k+1):end]]
 
         # Next, sample on the m-flat submanifold defined by first k dual
-        # co-ordinates being fixed. This is a p - k dimensional m-flat submanifold.
+        # co-ordinates being fixed. This is a (p-k)-dimensional m-flat submanifold.
+
         # Evaluate the k dual components.
         η1 = legendre_dual(θ1, generator, k)[1:k]
 
@@ -81,7 +82,7 @@ function step(rng, model::BayesModel, sampler::MRescursiveOrthogonalGibbs,
         # parameterized by remaining primal components θ?
         # By Lemma 3.5.1, should just be restriction of generator to
         # TODO Need to define metric, geometry on the manifold.
-        restricted_generator(x) = generator([x; samples[end]])
+        restricted_generator(x) = generator([x; samples[end]]) -
         sample = OrthogonalGibbs(mflat_log_target, θ1[(k+1):end], restricted_generator)
 
         return [sample; samples[end]]

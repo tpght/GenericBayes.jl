@@ -104,9 +104,9 @@ function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
 
     # Optimize the function
     # NOTE: passing gradient_proxy! above seems to stop the algorithm converging...
-    method = LBFGS(linesearch=BackTracking())
+    method = ConjugateGradient(linesearch=BackTracking())
     result = optimize(proxy, x0, method=method; autodiff=:forward,
-                      g_tol=1e-10, x_tol=1e-2, f_tol=1e-10)
+                      g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
 
     if(Optim.converged(result) == false)
         @show result
