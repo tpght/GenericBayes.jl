@@ -71,14 +71,14 @@ function inverse_legendre_dual(η::Vector{T}, generator::Function; x0=nothing) w
 end
 
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
-                               model::BayesModel) where G<:Bregman where T<:Real
-    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model))
+                               model::BayesModel; x0=x0) where G<:Bregman where T<:Real
+    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model); x0=x0)
 end
 
 
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
-                               model::BayesModel, k::Int) where G<:Bregman where T<:Real
-    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model), k)
+                               model::BayesModel, k::Int; x0=nothing) where G<:Bregman where T<:Real
+    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model), k; x0=x0)
 end
 
 function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
@@ -87,7 +87,7 @@ function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
     η_k = ξ[1:k]
 
     if(x0 == nothing)
-        x0 = zeros(T, k)
+        x0 = ones(T, k)
     else
         # Seemingly have to do this to convert to type T (autodiff types)
         x0 = zeros(T,k) + x0
@@ -97,16 +97,24 @@ function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
     full_primal(x) = [x; primal]
     proxy(x) = generator(full_primal(x)) - x' * η_k
 
-    function gradient_proxy!(g, x)
-        g = legendre_dual(full_primal(x), generator, k)[1:k] - η_k
-        @show g
+    function g!(gradient, x)
+        gradient .= legendre_dual(full_primal(x), generator, k)[1:k] - η_k
+    end
+
+    function h!(hessian, x)
+        hessian .= metric(full_primal(x), generator, k)
     end
 
     # Optimize the function
-    # NOTE: passing gradient_proxy! above seems to stop the algorithm converging...
-    method = ConjugateGradient(linesearch=BackTracking())
-    result = optimize(proxy, x0, method=method; autodiff=:forward,
-                      g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
+    # Set a very low tolerance on the gradient
+    # TODO add gradient tolerance
+    result = optimize(proxy, g!, h!, x0, Newton())
+    # result = optimize(proxy, g!, x0, ConjugateGradient())
+    # result = optimize(proxy, x0, Newton(); autodiff= :forward)
+
+    # method = ConjugateGradient(linesearch=BackTracking())
+    # result = optimize(proxy, x0, method=method; autodiff=:forward,
+    #                   g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
 
     if(Optim.converged(result) == false)
         @show result
@@ -135,6 +143,7 @@ end
 Compute the Riemannian metric, i.e. the hessian of `bregman_generator`.
 """
 metric(θ, generator::Function) = ForwardDiff.hessian(generator, θ)
+metric(θ, generator::Function, k::Int) = ForwardDiff.hessian( x-> generator([x; θ[(k+1):end]]), θ[1:k])
 function metric(θ, geometry::Bregman, model::BayesModel)
     metric(θ, x -> bregman_generator(x, geometry, model))
 end

@@ -20,7 +20,7 @@ function step(rng, model::BayesModel, sampler::SphericalRandomWalk{T},
               current_state=nothing; kwargs...) where T<:Real
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = max_posterior(model, zeros(dimension(model)))
+        state = zeros(dimension(model))
         return state, state
     end
 
