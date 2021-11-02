@@ -64,10 +64,10 @@ const ∇logπ = grad_log_posterior_density
 # end
 # const ∇²logπ = hessian_log_posterior_density
 
-
 # include("Diaconis.jl")
 # include("LinearGaussian.jl")
 # include("Forward.jl")
 # include("Rosenbrock.jl")
 include("CanonicalGLM.jl")
 include("SimpleGaussian.jl")
+include("SubmanifoldConditionals.jl")

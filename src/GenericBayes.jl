@@ -22,13 +22,17 @@ A `BayesModel` is any type representing a Bayesian model.
 Any `BayesModel` should implement at least `log_posterior_density`.
 """
 abstract type BayesModel <: AbstractModel end
-
+abstract type SubmanifoldConditional <: BayesModel end
+abstract type MFlatConditional <: SubmanifoldConditional end
+abstract type EFlatConditional <: SubmanifoldConditional end
+function ambient_model(model::SubmanifoldConditional) end
+function dimension(model::BayesModel) end
 
 # Include files from project
 include("opt/Opt.jl")
+include("geometry/Geometry.jl")
 include("models/Models.jl")
 include("vis/Density.jl")
-include("geometry/Geometry.jl")
 include("samplers/Samplers.jl")
 
 """

@@ -16,21 +16,25 @@ y = rand(Product(Bernoulli.(μ)))
 Σ[1,2] = ρ
 model = CanonicalGLM{Bernoulli, Float64}(X, y, zeros(p), Σ)
 
-N = 10000                        # Number of samples
+N = 1000                        # Number of samples
 subsampler = SphericalRandomWalk(0.5)
-subsamples = Int(20)
-l = 1                           # Dimension of embedded m-flat submanifold
-sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+subsamples = Int(100)
+k = 1                           # Dimension of embedded m-flat submanifold
+sampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
 
 samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)
 chain = Chains(samples)
 
-HMCsamples = sample(model, HamiltonianMonteCarlo(true, 100), N,
+if(p == 2)
+    plot(model, samples, 1.0)
+end
+
+HMCsamples = sample(model, HamiltonianMonteCarlo(false, 500), N,
                     chain_type=MCMCChains.Chains)
 HMCchain = Chains(HMCsamples)
 
 if(p == 2)
-    plot(model, samples, 1.0)
+    plot(model, HMCsamples, 1.0)
 end
 
 pyplot()

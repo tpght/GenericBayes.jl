@@ -20,16 +20,16 @@ end
 
 One iteration of the e-recursive orthogonal gibbs method.
 """
-function step(rng, model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
+function step(rng, outer_model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
               current_state=nothing; kwargs...) where T<:Real
     # Check if l divides p
-    if (dimension(model) % sampler.l != 0)
+    if (dimension(outer_model) % sampler.l != 0)
         error("RecursiveOrthogonalGibbs: l does not divide model dimension")
     end
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = max_posterior(model, zeros(dimension(model)))
+        state = max_posterior(outer_model, zeros(dimension(outer_model)))
         return state, state
     end
 
@@ -39,13 +39,12 @@ function step(rng, model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
     Performs the OrthogonalGibbs method by sampling on a k-dimensional m-flat then
     e-flat submanifold
     """
-    function OrthogonalGibbs(log_density::Function, θ0::Vector{<:Real}, generator::Function)
+    function OrthogonalGibbs(θ0::Vector{<:Real}, geometry::Bregman, model::BayesModel)
         # Check if we're on the last e-flat submanifold
         if(length(θ0) <= sampler.l)
             # Sample on the remaining l variables
-            samples = AbstractMCMC.sample(rng, LogDensityModel(log_density, sampler.l), sampler.subsampler,
-                   sampler.subsamples, progress=false)
-
+            samples = AbstractMCMC.sample(rng, model, sampler.subsampler,
+                                          sampler.subsamples, progress=false)
             return samples[end]
         end
 
@@ -54,34 +53,28 @@ function step(rng, model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
 
         # First, sample on the m-flat submanifold defined by first length(θ0) - l dual
         # co-ordinates being fixed. This is a l dimensional submanifold.
-        η0 = legendre_dual(θ0, generator, k)[1:k]
-
-        function mflat_log_target(x)
-            primal = inverse_legendre_dual([η0; x], generator, k, x0=θ0[1:k])
-            log_density(primal) - logabsdetmetric(primal, generator, k)
-        end
+        η0 = legendre_dual(θ0, geometry, model, k)[1:k]
+        mconditional_model = MFlatConditionalGibbs(model, geometry, η0, θ0[1:k])
 
         # Sample from density defined by mflat_log_target
         samples = AbstractMCMC.sample(rng,
-                                      LogDensityModel(mflat_log_target, sampler.l),
+                                      mconditional_model,
                                       sampler.subsampler, sampler.subsamples, progress=false)
 
         # samples[end] is now the l = length(θ0) - k resampled primal components.
-        θ1 = inverse_legendre_dual([η0; samples[end]], generator, k, x0 = θ0[1:k])
+        θ1 = inverse_legendre_dual([η0; samples[end]], geometry, model, k, x0 = θ0[1:k])
 
         # Use recursion to sample the remaining k variables.
         restricted_log_density(x) = log_density([x; samples[end]])
-        restricted_generator(x) = generator([x; samples[end]])
-        sample = OrthogonalGibbs(restricted_log_density, θ1[1:k], restricted_generator)
+        econditional_model = EFlatConditionalGibbs(model, θ1[(k+1):end])
+        inherited = EFlatGibbs(geometry, θ1[(k+1):end])
+        sample = OrthogonalGibbs(θ1[1:k], inherited, econditional_model)
 
         return [sample; samples[end]]
     end
 
-    log_density(x) = log_posterior_density(model, x)
-    generator(x) = bregman_generator(x, sampler.geometry, model)
-
     # Call the orthogonal gibbs function
-    state = OrthogonalGibbs(log_density, current_state, generator)
+    state = OrthogonalGibbs(current_state, sampler.geometry, outer_model)
 
     # Return new state
     return state, state

@@ -72,12 +72,13 @@ end
 
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
                                model::BayesModel; x0=x0) where G<:Bregman where T<:Real
+    @assert dimension(model) == length(η) "Model dimension does not match input"
     inverse_legendre_dual(η, x->bregman_generator(x, geometry, model); x0=x0)
 end
 
-
 function inverse_legendre_dual(η::Vector{T}, geometry::G,
                                model::BayesModel, k::Int; x0=nothing) where G<:Bregman where T<:Real
+    @assert dimension(model) == length(η) "Model dimension does not match input"
     inverse_legendre_dual(η, x->bregman_generator(x, geometry, model), k; x0=x0)
 end
 
@@ -145,6 +146,7 @@ Compute the Riemannian metric, i.e. the hessian of `bregman_generator`.
 metric(θ, generator::Function) = ForwardDiff.hessian(generator, θ)
 metric(θ, generator::Function, k::Int) = ForwardDiff.hessian( x-> generator([x; θ[(k+1):end]]), θ[1:k])
 function metric(θ, geometry::Bregman, model::BayesModel)
+    @assert dimension(model) == length(η) "Model dimension does not match input"
     metric(θ, x -> bregman_generator(x, geometry, model))
 end
 
@@ -175,6 +177,11 @@ logabsdetmetric(θ, generator::Function) = logabsdet(metric(θ, generator))[1]
 function logabsdetmetric(θ, geometry::Bregman, model::BayesModel)
     return logabsdet(metric(θ, geometry, model))[1]
 end
+
+function logabsdetmetric(θ, geometry::Bregman, model::BayesModel, k::Int)
+    logabsdetmetric(θ, x  -> bregman_generator(x, geometry, model), k)
+end
+
 
 # Returns logabsdet of upper-left k × k block of the metric
 function logabsdetmetric(θ, generator::Function, k::Int)

@@ -15,3 +15,4 @@ Compute the Riemannian metric tensor
 function metric(θ, geometry::Geometry, model::BayesModel) where T<:Real end
 
 include("Bregman.jl")
+include("InheritedBregman.jl")
