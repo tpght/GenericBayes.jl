@@ -20,13 +20,16 @@ struct MFlatGibbs{T<:Real} <: InheritedBregmanMFlat
 end
 
 function bregman_generator(θ, geometry::MFlatGibbs, model::MFlatConditional)
+    k = length(geometry.ηk)
+
     # embed into the ambient space
     embed = inverse_legendre_dual([geometry.ηk; θ], geometry.ambient,
-                                  ambient_model(model), length(geometry.ηk))
+                                  ambient_model(model), k)
+
     F = bregman_generator(embed, geometry.ambient, ambient_model(model))
 
     # Get the first k components of the embedding
-    θk = embed[1:length(geometry.ηk)]
+    θk = embed[1:k]
 
     F - geometry.ηk' * θk
 end
@@ -43,13 +46,14 @@ function legendre_dual(θ, geometry::MFlatGibbs, model::MFlatConditional)
 end
 
 function metric(θ, geometry::MFlatGibbs, model::MFlatConditional)
+    k = length(geometry.ηk)
+
     # embed into the ambient space
     embed = inverse_legendre_dual([geometry.ηk; θ], geometry.ambient,
-                                  ambient_model(model), length(geometry.ηk))
+                                  ambient_model(model), k)
 
     # Evaluate lower-right (p-k) × (p-k) block of the hessian
-    ForwardDiff.hessian( x-> bregman_generator([embed[1:k]; x], geometry,
-    ambient_model(model)), embed[(k+1):end])
+    metric_lower(embed, geometry.ambient, ambient_model(model), k)
 end
 
 """
@@ -68,9 +72,10 @@ function bregman_generator(θ, geometry::EFlatGibbs, model::EFlatConditional)
 end
 
 function legendre_dual(θ, geometry::EFlatGibbs, model::EFlatConditional)
-    # Return last p-k components of legendre dual
+    # Return first k components of legendre dual
     k = length(θ)
-    legendre_dual([θ; geometry.θok], geometry.ambient, ambient_model(model), k)[1:k]
+    ξ = legendre_dual([θ; geometry.θok],geometry.ambient,ambient_model(model), k)
+    ξ[1:k]
 end
 
 function metric(θ, geometry::EFlatGibbs, model::EFlatConditional)

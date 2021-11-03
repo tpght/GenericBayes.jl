@@ -21,10 +21,10 @@ function log_posterior_density(model::MFlatConditionalGibbs, θok)
 
     # Build the full primal vector by embedding into total space
     θ = inverse_legendre_dual([model.ηk; θok], model.ambient_geometry,
-    model.ambient_model, k, x0=model.θk0)
+    ambient_model(model), k, x0=model.θk0)
 
-    logπ(model.ambient_model, θ) - logabsdetmetric(θ, model.ambient_geometry,
-                                                   model.ambient_model, k)
+    logπ(ambient_model(model), θ) - logabsdetmetric(θ, model.ambient_geometry,
+                                                   ambient_model(model), k)
 end
 
 

@@ -57,9 +57,9 @@ function step(rng, outer_model::BayesModel, sampler::MRecursiveOrthogonalGibbs,
         # First, sample on the e-flat submanifold defined by last l = p - k
         # primal components being fixed. This is just a regular Gibbs update on
         # a k-dimensional hyperplane.
-        restricted_log_density(x) = logπ(model, [x; θ0[(k+1):end]])
+        econditional_model = EFlatConditionalGibbs(model, θ0[(k+1):end])
         samples = AbstractMCMC.sample(rng,
-                                      LogDensityModel(restricted_log_density, k),
+                                      econditional_model,
                                       sampler.subsampler, sampler.subsamples,
                                       progress=false)
 
@@ -80,9 +80,9 @@ function step(rng, outer_model::BayesModel, sampler::MRecursiveOrthogonalGibbs,
         #     logπ(model, primal) - logabsdetmetric(primal, geometry, model, k)
         # end
         # mflat_model = LogDensityModel(mflat_log_target, length(θ0) - k)
-        conditional_model = MFlatConditionalGibbs(model, geometry, η1, θ1[1:k])
+        mconditional_model = MFlatConditionalGibbs(model, geometry, η1, θ1[1:k])
 
-        θ_c = OrthogonalGibbs(θ1[(k+1):end], inherited, conditional_model)
+        θ_c = OrthogonalGibbs(θ1[(k+1):end], inherited, mconditional_model)
 
         # Embed into total space
         embed = inverse_legendre_dual([η1; θ_c], geometry, model, k, x0=θ1[1:k])

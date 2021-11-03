@@ -30,6 +30,24 @@ function bregman_generator(θ, geometry::NegativeLogDensity, model::BayesModel)
     return -log_posterior_density(model, θ)
 end
 
+function legendre_dual(θ, geometry::NegativeLogDensity, model::BayesModel)
+    ForwardDiff.gradient(x -> -logπ(model, x), θ)
+end
+
+function metric(θ, geometry::NegativeLogDensity, model::BayesModel)
+    ForwardDiff.hessian(x -> -logπ(model, x), θ)
+end
+
+function metric(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int)
+    ForwardDiff.hessian(x -> -logπ(model, [x; θ[(k+1):end]]), θ[1:k])
+end
+
+function metric_lower(θ, geometry::NegativeLogDensity, model::BayesModel,
+                      k::Int)
+    # Return lower-right (p-k) × (p-k) block
+    ForwardDiff.hessian(x -> -logπ(model, [θ[1:k]; x]), θ[(k+1):end])
+end
+
 """
     legendre_dual(θ::Parameter, geometry::Bregman, model::BayesModel)
 
@@ -39,21 +57,9 @@ Default uses automatic differentiation.
 Optional parameter k returns mixed co-ordinates (η, θ), where η are the first k
 dual co-ordinates.
 """
-function legendre_dual(θ, geometry::Bregman, model::BayesModel)
-    # First compute the gradient as a vector
-    proxy(x) = bregman_generator(x, geometry, model)
-    ForwardDiff.gradient(proxy, θ)
-end
-
-legendre_dual(θ, generator::Function) = ForwardDiff.gradient(generator, θ)
-
 function legendre_dual(θ, geometry::Bregman, model::BayesModel, k::Int)
-    legendre_dual(θ, x -> bregman_generator(x, geometry, model), k)
-end
-
-function legendre_dual(θ, generator::Function, k::Int)
-    proxy(x) = generator([x; θ[(k+1):end]])
-    [ForwardDiff.gradient(proxy, θ[1:k]); θ[(k+1):end]]
+    ηk = legendre_dual(θ, geometry, model)[1:k]
+    [ηk; θ[(k+1):end]]
 end
 
 """
@@ -66,24 +72,15 @@ Default uses automatic differentiation.
 Optional parameter k returns primal co-ordinates corresponding to mixed
 co-ordinates (η, θ), where η are the first k dual co-ordinates.
 """
-function inverse_legendre_dual(η::Vector{T}, generator::Function; x0=nothing) where T<:Real
-    inverse_legendre_dual(η, generator, length(η), x0=x0)
+function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman,
+                               model::BayesModel) where T <: Real
+    inverse_legendre_dual(ξ, geometry, model, length(ξ))
 end
 
-function inverse_legendre_dual(η::Vector{T}, geometry::G,
-                               model::BayesModel; x0=x0) where G<:Bregman where T<:Real
-    @assert dimension(model) == length(η) "Model dimension does not match input"
-    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model); x0=x0)
-end
-
-function inverse_legendre_dual(η::Vector{T}, geometry::G,
-                               model::BayesModel, k::Int; x0=nothing) where G<:Bregman where T<:Real
-    @assert dimension(model) == length(η) "Model dimension does not match input"
-    inverse_legendre_dual(η, x->bregman_generator(x, geometry, model), k; x0=x0)
-end
-
-function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
+function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesModel,
                                k::Int; x0=nothing) where T<:Real
+    @assert dimension(model) == length(ξ) "Model dimension does not match input"
+
     primal = ξ[(k+1):end]
     η_k = ξ[1:k]
 
@@ -96,14 +93,14 @@ function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
 
     # Define cost function
     full_primal(x) = [x; primal]
-    proxy(x) = generator(full_primal(x)) - x' * η_k
+    proxy(x) = bregman_generator(full_primal(x), geometry, model) - x' * η_k
 
     function g!(gradient, x)
-        gradient .= legendre_dual(full_primal(x), generator, k)[1:k] - η_k
+        gradient .= legendre_dual(full_primal(x), geometry, model, k)[1:k] - η_k
     end
 
     function h!(hessian, x)
-        hessian .= metric(full_primal(x), generator, k)
+        hessian .= metric(full_primal(x), geometry, model, k)
     end
 
     # Optimize the function
@@ -143,11 +140,19 @@ end
 
 Compute the Riemannian metric, i.e. the hessian of `bregman_generator`.
 """
-metric(θ, generator::Function) = ForwardDiff.hessian(generator, θ)
-metric(θ, generator::Function, k::Int) = ForwardDiff.hessian( x-> generator([x; θ[(k+1):end]]), θ[1:k])
-function metric(θ, geometry::Bregman, model::BayesModel)
-    @assert dimension(model) == length(η) "Model dimension does not match input"
-    metric(θ, x -> bregman_generator(x, geometry, model))
+function metric(θ, geometry::Bregman, model::BayesModel) end
+
+function metric(θ, geometry::Bregman, model::BayesModel, k::Int)
+    @assert dimension(model) == length(θ) "Model dimension does not match input"
+    # For now, literally evaluate the entire metric and take the upper block
+    # TODO maybe print a warning here that this is slow...
+    metric(θ, geometry, model)[1:k, 1:k]
+end
+
+function metric_lower(θ, geometry::Bregman, model::BayesModel, k::Int)
+    @assert dimension(model) == length(θ) "Model dimension does not match input"
+    # Evaluate the entire metric and take the lower-right block
+    metric(θ, geometry, model)[(k+1):end, (k+1):end]
 end
 
 # """
@@ -173,20 +178,12 @@ end
 
 Compute the log absolute-value of the determinant of the Riemannian metric
 """
-logabsdetmetric(θ, generator::Function) = logabsdet(metric(θ, generator))[1]
 function logabsdetmetric(θ, geometry::Bregman, model::BayesModel)
     return logabsdet(metric(θ, geometry, model))[1]
 end
 
 function logabsdetmetric(θ, geometry::Bregman, model::BayesModel, k::Int)
-    logabsdetmetric(θ, x  -> bregman_generator(x, geometry, model), k)
-end
-
-
-# Returns logabsdet of upper-left k × k block of the metric
-function logabsdetmetric(θ, generator::Function, k::Int)
-    proxy(x) = generator([x; θ[(k+1):end]])
-    logabsdet(ForwardDiff.hessian(proxy, θ[1:k]))[1]
+    return logabsdet(metric(θ, geometry, model, k))[1]
 end
 
 # """

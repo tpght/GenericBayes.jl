@@ -1,6 +1,6 @@
 using GenericBayes, Distributions, LinearAlgebra, StatsFuns, Plots, MCMCChains, ForwardDiff
 
-p = 2                           # Number of coefficients
+p = 6                           # Number of coefficients
 n = 100                         # Number of observations (data)
 
 # Generate design matrix
@@ -16,10 +16,10 @@ y = rand(Product(Bernoulli.(μ)))
 Σ[1,2] = ρ
 model = CanonicalGLM{Bernoulli, Float64}(X, y, zeros(p), Σ)
 
-N = 10000                        # Number of samples
+N = 1000                        # Number of samples
 subsampler = SphericalRandomWalk(0.5)
-subsamples = Int(20)
-l = 1                           # Dimension of embedded m-flat submanifold
+subsamples = Int(100)
+l = 2                           # Dimension of embedded m-flat submanifold
 sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
 
 samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)

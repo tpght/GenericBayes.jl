@@ -65,7 +65,6 @@ function step(rng, outer_model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
         θ1 = inverse_legendre_dual([η0; samples[end]], geometry, model, k, x0 = θ0[1:k])
 
         # Use recursion to sample the remaining k variables.
-        restricted_log_density(x) = log_density([x; samples[end]])
         econditional_model = EFlatConditionalGibbs(model, θ1[(k+1):end])
         inherited = EFlatGibbs(geometry, θ1[(k+1):end])
         sample = OrthogonalGibbs(θ1[1:k], inherited, econditional_model)

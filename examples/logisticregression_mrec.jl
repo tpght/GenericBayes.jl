@@ -1,6 +1,6 @@
 using GenericBayes, Distributions, LinearAlgebra, StatsFuns, Plots, MCMCChains, ForwardDiff
 
-p = 2                           # Number of coefficients
+p = 3                           # Number of coefficients
 n = 100                         # Number of observations (data)
 
 # Generate design matrix
