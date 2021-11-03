@@ -93,20 +93,19 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
 
     # Define cost function
     full_primal(x) = [x; primal]
-    proxy(x) = bregman_generator(full_primal(x), geometry, model) - x' * η_k
 
-    function g!(gradient, x)
-        gradient .= legendre_dual(full_primal(x), geometry, model, k)[1:k] - η_k
+    function f!(F, x)
+        F .= legendre_dual(full_primal(x), geometry, model, k)[1:k] - η_k
     end
 
-    function h!(hessian, x)
-        hessian .= metric(full_primal(x), geometry, model, k)
+    function j!(J, x)
+        J .= metric(full_primal(x), geometry, model, k)
     end
 
     # Optimize the function
     # Set a very low tolerance on the gradient
     # TODO add gradient tolerance
-    result = optimize(proxy, g!, h!, x0, Newton())
+    result = nlsolve(f!, j!, x0)
     # result = optimize(proxy, g!, x0, ConjugateGradient())
     # result = optimize(proxy, x0, Newton(); autodiff= :forward)
 
@@ -114,13 +113,13 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
     # result = optimize(proxy, x0, method=method; autodiff=:forward,
     #                   g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
 
-    if(Optim.converged(result) == false)
+    if(converged(result) == false)
         @show result
         # @show k
         error("Could not convert from mixed to primal co-ordinates")
     end
 
-    θ = Optim.minimizer(result)
+    θ = result.zero
     [θ; primal]
 end
 

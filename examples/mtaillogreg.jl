@@ -1,5 +1,5 @@
 using GenericBayes, Distributions, LinearAlgebra
-using StatsFuns, Plots, MCMCChains, ForwardDiff, Random
+using StatsFuns, Plots, MCMCChains, ForwardDiff, Random, StatProfilerHTML
 
 function make_model(rng, p)
     n = 100                         # Number of observations (data)
@@ -19,26 +19,29 @@ function make_model(rng, p)
 end
 
 # Create samplers
-p = 6
-l = 2                           # Dimension of embedded m-flat submanifold
+p = 3
+k = 1                           # Dimension of embedded m-flat submanifold
 N = 1000                        # Number of samples
-subsampler = SphericalRandomWalk(0.5)
+subsampler = SphericalRandomWalk(0.2)
 subsamples = Int(100)
-tail_sampler = ETailRecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
-it_sampler = EIterativeOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
-sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+# tail_sampler = MTailRecursiveOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
+it_sampler = MIterativeOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
+sampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
 
 rng = MersenneTwister(1234)
 model = make_model(rng, p)
 
 rng = MersenneTwister(1234)
-@time samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
+samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
+# @time samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
+# @profilehtml samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
 
-rng = MersenneTwister(1234)
-@time tail_samples = sample(rng, model, tail_sampler, N, chain_type=MCMCChains.Chains);
+# rng = MersenneTwister(1234)
+# @time tail_samples = sample(rng, model, tail_sampler, N, chain_type=MCMCChains.Chains);
 
 rng = MersenneTwister(1234)
 @time it_samples = sample(rng, model, it_sampler, N, chain_type=MCMCChains.Chains);
+Chain(it_samples)
 
 # Is the tail recursive algorithm equivalent to the usual recursive one?
 
@@ -49,5 +52,5 @@ rng = MersenneTwister(1234)
 @show tail_samples == samples
 
 if(p == 2)
-    plot(model, tail_samples, 1.0)
+    plot(model, it_samples, 1.0)
 end
