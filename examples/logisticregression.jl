@@ -1,4 +1,8 @@
-using GenericBayes, Distributions, LinearAlgebra, StatsFuns, Plots, MCMCChains, ForwardDiff
+using GenericBayes, Distributions, LinearAlgebra
+using StatsFuns, Plots, MCMCChains, ForwardDiff, Random
+
+# Set a random seed
+rng = MersenneTwister(1234)
 
 p = 6                           # Number of coefficients
 n = 100                         # Number of observations (data)
@@ -22,7 +26,7 @@ subsamples = Int(100)
 l = 2                           # Dimension of embedded m-flat submanifold
 sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
 
-samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)
+@time samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)
 chain = Chains(samples)
 
 HMCsamples = sample(model, HamiltonianMonteCarlo(true, 100), N,

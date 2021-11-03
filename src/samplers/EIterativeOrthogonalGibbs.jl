@@ -1,12 +1,12 @@
 import AbstractMCMC.AbstractSampler, AbstractMCMC.step
-export ERecursiveOrthogonalGibbs
+export EIterativeOrthogonalGibbs
 
 """
     ERecursiveOrthogonalGibbs
 
 Orthogonal Gibbs, recursing on e-flat submanifolds.
 """
-struct ERecursiveOrthogonalGibbs <: AbstractSampler
+struct EIterativeOrthogonalGibbs <: AbstractSampler
     geometry::Bregman           # Geometry to be used in the sampler
     l::Int                      # Dimension of the m-flat submanifold
     subsampler::AbstractSampler # Sampler to be used on each m-flat submanifold
@@ -20,37 +20,51 @@ end
 
 One iteration of the e-recursive orthogonal gibbs method.
 """
-function step(rng, outer_model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
+function step(rng, outer_model::BayesModel, sampler::EIterativeOrthogonalGibbs,
               current_state=nothing; kwargs...) where T<:Real
+
+    p = dimension(outer_model)
+    l = sampler.l
+
     # Check if l divides p
-    if (dimension(outer_model) % sampler.l != 0)
+    if (p % l != 0)
         error("RecursiveOrthogonalGibbs: l does not divide model dimension")
     end
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = max_posterior(outer_model, zeros(dimension(outer_model)))
+        state = max_posterior(outer_model, zeros(p))
         return state, state
     end
 
-    """
-        OrthogonalGibbs
+    # Set initial point, geometry and model
+    θ0 = current_state
+    geometry = sampler.geometry
+    model = outer_model
 
-    Performs the OrthogonalGibbs method by sampling on a k-dimensional m-flat then
-    e-flat submanifold
-    """
-    function OrthogonalGibbs(θ0::Vector{<:Real}, geometry::Bregman, model::BayesModel)
-        # Check if we're on the last e-flat submanifold
-        if(length(θ0) <= sampler.l)
+    # Create array to store sample
+    full_sample = zeros(p)
+
+    # Compute number of blocks
+    nblocks = Int(length(current_state) / l)
+
+    for block = 1:nblocks
+        # Check if we're on the final submanifold
+        # i.e. base case
+        if(length(θ0) <= l)
             # Sample on the remaining l variables
+            # These are the first l primal components
+            # θ1,..,θl  - where l = p - k
             samples = AbstractMCMC.sample(rng, model, sampler.subsampler,
                                           sampler.subsamples, progress=false)
-            return samples[end]
+            # NOTE: This assumes last block is size l
+            # as it should be, since l should divide p
+            full_sample[1:l] = samples[end]
+            return full_sample, full_sample
         end
 
-        # If sampler.l is small, then k is potentially large.
         # NOTE: k changes at each iteration!!
-        k = length(θ0) - sampler.l
+        k = length(θ0) - l
 
         # First, sample on the m-flat submanifold defined by first length(θ0) - l dual
         # co-ordinates being fixed. This is a l dimensional submanifold.
@@ -60,24 +74,20 @@ function step(rng, outer_model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
         # Sample from density defined by mflat_log_target
         samples = AbstractMCMC.sample(rng,
                                       mconditional_model,
-                                      sampler.subsampler, sampler.subsamples, progress=false)
+                                      sampler.subsampler,
+                                      sampler.subsamples,
+                                      progress=false)
+
+        # Add the resampled l components to the accumulator
+        bblock = nblocks - block
+        full_sample[(1 + l * bblock):(l*(bblock + 1))] = samples[end]
 
         # samples[end] is now the l = length(θ0) - k resampled primal components.
         θ1 = inverse_legendre_dual([η0; samples[end]], geometry, model, k, x0 = θ0[1:k])
 
-        # Use recursion to sample the remaining k variables.
-        # Sample on the e-flat submanifold defined by fixing (k+1):end primal components.
-        # i.e. the components we've just resampled.
-        econditional_model = EFlatConditionalGibbs(model, θ1[(k+1):end])
-        inherited = EFlatGibbs(geometry, θ1[(k+1):end])
-        sample = OrthogonalGibbs(θ1[1:k], inherited, econditional_model)
-
-        return [sample; samples[end]]
+        # Change the relevant parameters; equivalent to recursion
+        model = EFlatConditionalGibbs(model, θ1[(k+1):end])
+        geometry = EFlatGibbs(geometry, θ1[(k+1):end])
+        θ0 = θ1[1:k]
     end
-
-    # Call the orthogonal gibbs function
-    state = OrthogonalGibbs(current_state, sampler.geometry, outer_model)
-
-    # Return new state
-    return state, state
 end
