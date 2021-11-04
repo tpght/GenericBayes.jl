@@ -19,14 +19,17 @@ function make_model(rng, p)
 end
 
 # Create samplers
-p = 6
-l = 2                           # Dimension of embedded m-flat submanifold
-N = 1000                        # Number of samples
+p = 3
+l = 1                           # Dimension of embedded m-flat submanifold
+N = 100                        # Number of samples
 subsampler = SphericalRandomWalk(0.5)
 subsamples = Int(100)
-tail_sampler = ETailRecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+
 it_sampler = EIterativeOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+itm_sampler = MIterativeOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
 sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+msampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+gsampler = OrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
 
 rng = MersenneTwister(1234)
 model = make_model(rng, p)
@@ -35,18 +38,23 @@ rng = MersenneTwister(1234)
 @time samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
 
 rng = MersenneTwister(1234)
-@time tail_samples = sample(rng, model, tail_sampler, N, chain_type=MCMCChains.Chains);
+@time msamples = sample(rng, model, msampler, N, chain_type=MCMCChains.Chains);
 
 rng = MersenneTwister(1234)
 @time it_samples = sample(rng, model, it_sampler, N, chain_type=MCMCChains.Chains);
 
+rng = MersenneTwister(1234)
+@time gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
+
+rng = MersenneTwister(1234)
+@time itm_samples = sample(rng, model, itm_sampler, N, chain_type=MCMCChains.Chains);
+
 # Is the tail recursive algorithm equivalent to the usual recursive one?
 
-@show samples[10], it_samples[10]
-@show samples[10] == it_samples[10]
-@show samples == it_samples
-@show tail_samples == it_samples
-@show tail_samples == samples
+@show gsamples == it_samples
+@show gsamples == itm_samples
+
+@show norm(gsamples[100]- itm_samples[100], 2)
 
 if(p == 2)
     plot(model, tail_samples, 1.0)

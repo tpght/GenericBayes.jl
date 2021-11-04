@@ -1,6 +1,6 @@
 module GenericBayes
 
-using StatsBase, LinearAlgebra, ForwardDiff, NLsolve, AbstractMCMC, Distributions
+using StatsBase, LinearAlgebra, ForwardDiff, Optim, AbstractMCMC, Distributions
 using StatsFuns, MCMCChains, Plots, LineSearches, AdvancedHMC, Random, InvertedIndices
 import Base.Vector, Base.Array, Base.length
 import AbstractMCMC.AbstractModel

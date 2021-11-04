@@ -1,4 +1,4 @@
-export LogDensityModel
+export LogDensityModel, ReversedModel
 
 """
     prior
@@ -32,6 +32,20 @@ end
 
 log_posterior_density(model::LogDensityModel, θ) = model.log_density(θ)
 dimension(model::LogDensityModel) = model.dimension
+
+"""
+    ReversedModel
+
+Reverses the labelling of the parameters of another model.
+"""
+struct ReversedModel <: BayesModel
+    model::BayesModel
+end
+
+function log_posterior_density(model::ReversedModel, θ)
+    log_posterior_density(model.model, reverse(θ))
+end
+dimension(model::ReversedModel) = dimension(model.model)
 
 """
     grad_log_posterior_density(model, θ)

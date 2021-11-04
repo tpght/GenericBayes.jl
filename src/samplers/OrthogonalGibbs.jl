@@ -1,46 +1,55 @@
 import AbstractMCMC.AbstractSampler, AbstractMCMC.step
-export MIterativeOrthogonalGibbs
+export OrthogonalGibbs
 
 """
-    ERecursiveOrthogonalGibbs
+    OrthogonalGibbs
 
-Orthogonal Gibbs, recursing on e-flat submanifolds.
+Orthogonal Gibbs sampling algorithm: generalizes e/m-recursive versions
 """
-struct MIterativeOrthogonalGibbs <: AbstractSampler
+struct OrthogonalGibbs <: AbstractSampler
     geometry::Bregman           # Geometry to be used in the sampler
-    k::Int                      # Dimension of the e-flat submanifold
+    block_size::Int                      # Dimension of the e-flat submanifold
     subsampler::AbstractSampler # Sampler to be used on each e-flat submanifold
     subsamples::Int                  # Number of times to run the embedded sampler
 end
 
 
 """
-    step(rng, model::BayesModel, sampler::ProductManifoldHMC,
+    step(rng, model::BayesModel, sampler::OrthogonalGibbs,
               state=nothing; kwargs...)
 
-One iteration of the e-recursive orthogonal gibbs method.
+One iteration of the orthogonal gibbs method.
 """
-function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
+function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
               current_state=nothing; kwargs...) where T<:Real
 
     p = dimension(model)
-    k = sampler.k
+    k = sampler.block_size
 
     # Check if l divides p
-    @assert p % k == 0 "MIterativeOrthogonalGibbs: k does not divide model dimension"
+    @assert p % k == 0 "OrthogonalGibbs: k does not divide model dimension"
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = max_posterior(model, zeros(p))
-        return state, state
+        θ = max_posterior(model, zeros(p))
+        # η = legendre_dual(θ, sampler.geometry, model, p-k)
+        # return θ, [θ, η]
+        return θ, θ
     end
 
-    # Create array to store dual components
-    η = zeros(p)
+    # θ = copy(current_state[1])
+    # η = copy(current_state[2])
+
+    # η1 = legendre_dual(θ, sampler.geometry, model, p - k)
+    # @show norm(η - η1, 2)
 
     # θ contains the current state
     # NOTE is it necessary to copy here?
     θ = copy(current_state)
+
+    # Compute dual co-ordinates for everything but the final block
+    # TODO Save this between Markov steps
+    η = legendre_dual(θ, sampler.geometry, model, p - k)
 
     # Compute number of blocks
     nblocks = Int(p / k)
@@ -89,11 +98,21 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
         θ[[lower_inds; block_inds]] .= embed[[lower_inds; block_inds]]
 
         # Compute dual co-ordinates for this block
-        η[block_inds] = ForwardDiff.gradient(x -> bregman_generator(
-                                                 [embed[lower_inds]; x; embed[upper_inds]],
-                                                 sampler.geometry, model), embed[block_inds])
-
+        # NOTE: η[lower_inds] should be equal to [lower_inds] of dual coordinate
+        # of embed = ηc, so only have to save this block.
+        # NOTE: This is unnecessary at the final step...
+        if(block < nblocks)
+            η[block_inds] .= ForwardDiff.gradient(x -> bregman_generator(
+                                             [embed[lower_inds]; x; embed[upper_inds]],
+                sampler.geometry, model),
+                                                  embed[block_inds])
+        else
+            η[block_inds] = θ[block_inds]
+        end
     end
 
+    # The first returned value is the sample, i.e. in primal co-ordinates
+    # The second value is the "state"; for this sampler, that's the pair of
+    # primal and dual variables.
     return θ, θ
 end

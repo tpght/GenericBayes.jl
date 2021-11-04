@@ -8,6 +8,8 @@ include("EIterativeOrthogonalGibbs.jl")
 include("MIterativeOrthogonalGibbs.jl")
 include("MRecursiveOrthogonalGibbs.jl")
 
+include("OrthogonalGibbs.jl")
+
 include("OrthogonalNaturalGradient.jl")
 include("HamiltonianMonteCarlo.jl")
 

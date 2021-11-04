@@ -19,9 +19,9 @@ function make_model(rng, p)
 end
 
 # Create samplers
-p = 3
+p = 2
 k = 1                           # Dimension of embedded m-flat submanifold
-N = 1000                        # Number of samples
+N = 100                        # Number of samples
 subsampler = SphericalRandomWalk(0.2)
 subsamples = Int(100)
 # tail_sampler = MTailRecursiveOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
@@ -41,16 +41,22 @@ samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
 
 rng = MersenneTwister(1234)
 @time it_samples = sample(rng, model, it_sampler, N, chain_type=MCMCChains.Chains);
-Chain(it_samples)
-
-# Is the tail recursive algorithm equivalent to the usual recursive one?
-
-@show samples[10], it_samples[10]
-@show samples[10] == it_samples[10]
-@show samples == it_samples
-@show tail_samples == it_samples
-@show tail_samples == samples
+Chains(it_samples)
 
 if(p == 2)
     plot(model, it_samples, 1.0)
+end
+
+# Is E-recursive on the reversed model the same as m-recursive on the original?
+# (after switching samples back, that is)
+l = p - k
+esampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamples)
+rng = MersenneTwister(1234)
+esamples = sample(rng, model, esampler, N, chain_type=MCMCChains.Chains);
+
+@show samples[50], it_samples[50], esamples[50]
+
+
+if(p == 2)
+    plot(model, esamples, 1.0)
 end
