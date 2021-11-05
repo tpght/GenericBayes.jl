@@ -42,6 +42,10 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
     # NOTE is it necessary to copy here?
     θ = copy(current_state)
 
+    # Compute dual co-ordinates for everything but the final block
+    # TODO Save this between Markov steps
+    η = legendre_dual(θ, sampler.geometry, model, p - k)
+
     # Compute number of blocks
     nblocks = Int(p / k)
 

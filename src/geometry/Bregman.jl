@@ -1,6 +1,6 @@
 using LinearAlgebra, ForwardDiff, Optim
 export Bregman, DualParameter, NegativeLogDensity, Euclidean
-export legendre_dual, bregman_generator, inverse_legendre_dual
+export legendre_dual, bregman_generator, inverse_legendre_dual, divergence
 
 """
     Bregman
@@ -15,6 +15,18 @@ abstract type Bregman <: Geometry end
 The convex function from which the Bregman divergence and geometry are derived
 """
 function bregman_generator(θ, geometry::Bregman, model::BayesModel) end
+
+"""
+    divergence
+
+Returns the divergence from θ1 to θ2.
+"""
+function divergence(θ1, θ2, geometry::Bregman, model::BayesModel)
+    Fθ1 = bregman_generator(θ1, geometry, model)
+    Fθ2 = bregman_generator(θ2, geometry, model)
+    ∇Fθ2 = legendre_dual(θ2, geometry, model)
+    Fθ1 - Fθ2 - ∇Fθ2' * (θ1 - θ2)
+end
 
 """
     NegativeLogDensity{P}
@@ -40,6 +52,23 @@ end
 
 function metric(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int)
     ForwardDiff.hessian(x -> -logπ(model, [x; θ[(k+1):end]]), θ[1:k])
+end
+
+"""
+    metric(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int, block::Int)
+
+Evaluate the k × k sub-matrix at position block on the block-diagonal of the metric
+"""
+function metric(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int, block::Int)
+    p = length(θ)
+    block_inds = ((block-1)*k+1):(block*k)
+    upper_inds = (block*k+1):p
+    lower_inds = 1:((block-1)*k)
+
+    ForwardDiff.hessian(x -> bregman_generator(
+                                                [θ[lower_inds]; x; θ[upper_inds]],
+                                                geometry, model),
+                        θ[block_inds])
 end
 
 function metric_lower(θ, geometry::NegativeLogDensity, model::BayesModel,
@@ -162,6 +191,12 @@ function metric_lower(θ, geometry::Bregman, model::BayesModel, k::Int)
     metric(θ, geometry, model)[(k+1):end, (k+1):end]
 end
 
+function metric_upperright(θ, geometry::Bregman, model::BayesModel, k::Int)
+    @assert dimension(model) == length(θ) "Model dimension does not match input"
+    # Evaluate the entire metric and take the lower-right block
+    metric(θ, geometry, model)[1:k, (k+1):end]
+end
+
 # """
 #     metric(η::DualParameter{T, G, P}, geometry::Bregman, model::BayesModel)
 
@@ -191,6 +226,16 @@ end
 
 function logabsdetmetric(θ, geometry::Bregman, model::BayesModel, k::Int)
     return logabsdet(metric(θ, geometry, model, k))[1]
+end
+
+"""
+   logabsdetmetric(θ, geometry::Bregman, model::BayesModel, k::Int, block::Int)
+
+Compute the logabsdet of the k × k sub-matrix on the diagonal of the metric,
+at position block
+"""
+function logabsdetmetric(θ, geometry::Bregman, model::BayesModel, k::Int, block::Int)
+    return logabsdet(metric(θ, geometry, model, k, block))[1]
 end
 
 # """

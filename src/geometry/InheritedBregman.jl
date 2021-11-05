@@ -8,7 +8,7 @@ dually-flat manifold.
 abstract type InheritedBregman <: Bregman end
 abstract type InheritedBregmanMFlat <: InheritedBregman end
 abstract type InheritedBregmanEFlat <: InheritedBregman end
-
+export MFlatGibbs
 """
     MFlatGibbs
 
@@ -46,6 +46,9 @@ function legendre_dual(θ, geometry::MFlatGibbs, model::MFlatConditional)
 end
 
 function metric(θ, geometry::MFlatGibbs, model::MFlatConditional)
+    # The metric on the m-flat submanifold (Gibbs A and B matrices) is equal to
+    # the Schur complement of G_{k × k} (the upper-left k × k block of the
+    # metric) in the full metric G
     k = length(geometry.ηk)
 
     # embed into the ambient space
@@ -53,7 +56,17 @@ function metric(θ, geometry::MFlatGibbs, model::MFlatConditional)
                                   ambient_model(model), k)
 
     # Evaluate lower-right (p-k) × (p-k) block of the hessian
-    metric_lower(embed, geometry.ambient, ambient_model(model), k)
+    # Corresponds to B' * G * B
+    BTGB = metric_lower(embed, geometry.ambient, ambient_model(model), k)
+
+    ATGA = metric(embed, geometry.ambient, ambient_model(model), k)
+
+    # Evaluate upper-right k × (p-k) block of the hessian
+    # Equivalent to A' * G * B
+    ATGB = metric_upperright(embed, geometry.ambient, ambient_model(model), k)
+
+    # Return embedded metric
+    BTGB - ATGB' * inv(ATGA) * ATGB
 end
 
 """

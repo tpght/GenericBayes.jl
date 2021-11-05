@@ -75,6 +75,9 @@ function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
                                           model, k * (block - 1),
                                           x0=θ[lower_inds])
 
+            # NOTE Here we evaluate a big sub-matrix.
+            # what if we simply evaluate the k × k block on the diagonal, in
+            # the correct position for the block?
             logπ(model, embed) - logabsdetmetric(embed, sampler.geometry,
                                                  model, k * (block - 1))
         end
@@ -87,6 +90,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
 
         # Save a subsample in the current block
         θ[block_inds] .= subsamples[end]
+
 
         # embed into the ambient space
         embed = inverse_legendre_dual([ηc; θ[[block_inds; upper_inds]]],
