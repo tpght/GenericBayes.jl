@@ -19,24 +19,24 @@ end
 
 One iteration of the orthogonal natural gradient method.
 """
-function step(rng, model::BayesModel, sampler::OrthogonalNaturalGradient,
+function step(rng, outer_model::BayesModel, sampler::OrthogonalNaturalGradient,
               current_state=nothing; kwargs...) where T<:Real
 
     # First, generate an initial state if required
     if (current_state == nothing)
         # NOTE: Can't use the mode for this, because natural gradient is zero at
         # the mode.
-        state = max_posterior(model, zeros(dimension(model))) + rand(Normal(), dimension(model))
+        state = max_posterior(outer_model, zeros(dimension(outer_model))) + rand(Normal(), dimension(outer_model))
         return state, state
-    end
 
+    end
     """
         ONG
 
     Performs the ONG method by sampling on a k-dimensional m-flat then
     e-flat submanifold
     """
-    function ONG(log_density::Function, θ0::Vector{<:Real}, generator::Function)
+    function ONG(θ0::Vector{<:Real}, geometry::Bregman, model::BayesModel)
         # Get dimension of model
         p = length(θ0)
 
@@ -44,17 +44,18 @@ function step(rng, model::BayesModel, sampler::OrthogonalNaturalGradient,
         # TODO Can also stop before we get to this point.
         if(p == 1)
             # Sample on the remaining l variables (e-flat)
-            samples = AbstractMCMC.sample(rng, LogDensityModel(log_density, 1), sampler.subsampler,
+            samples = AbstractMCMC.sample(rng, model, sampler.subsampler,
                    sampler.subsamples, progress=false)
 
             return samples[end]
         end
 
         # Compute the gradient with respect to primal co-ordinates.
+        log_density(x) = log_posterior_density(model, x)
         gradient = ForwardDiff.gradient(log_density, θ0)
 
         # Convert current point to dual co-ordinates (take gradient of generator)
-        η0 = legendre_dual(θ0, generator)
+        η0 = legendre_dual(θ0, geometry, model)
 
         # Parameterize the dual-geodesic to sample along
         dg(t) = η0 + t .* gradient
@@ -86,11 +87,8 @@ function step(rng, model::BayesModel, sampler::OrthogonalNaturalGradient,
         return θ1 + B * sample
     end
 
-    log_density(x) = log_posterior_density(model, x)
-    generator(x) = bregman_generator(x, sampler.geometry, model)
-
     # Call the orthogonal gibbs function
-    state = ONG(log_density, current_state, generator)
+    state = ONG(current_state, sampler.geometry, outer_model)
 
     # Return new state
     return state, state

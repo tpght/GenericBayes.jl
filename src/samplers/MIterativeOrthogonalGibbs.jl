@@ -35,9 +35,6 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
         return state, state
     end
 
-    # Create array to store dual components
-    η = zeros(p)
-
     # θ contains the current state
     # NOTE is it necessary to copy here?
     θ = copy(current_state)

@@ -11,6 +11,7 @@ include("MRecursiveOrthogonalGibbs.jl")
 include("OrthogonalGibbs.jl")
 
 include("OrthogonalNaturalGradient.jl")
+include("IterativeNaturalGradient.jl")
 include("HamiltonianMonteCarlo.jl")
 
 include("CustomARS.jl")

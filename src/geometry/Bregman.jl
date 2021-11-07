@@ -160,6 +160,62 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
     [θ; primal]
 end
 
+function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
+ geometry::Bregman, model::BayesModel; x0::Vector{T}) where T<:Real
+    @assert dimension(model) == length(b) "Model dimension does not match input"
+    k = length(δ)
+    if(k == 0) return b end
+    @assert k == size(A)[2] "Number of columns in A does not match
+                                    length of δ"
+
+    if(x0 == nothing)
+        x0 = ones(T, k)
+    else
+        # Seemingly have to do this to convert to type T (autodiff types)
+        x0 = zeros(T,k) + x0
+    end
+
+    # Define cost function
+    # For conjugate gradient, A is an orthogonal matrix. Therefore, A' A is the
+    # k × k identity.
+    # Calculate projection b of θ onto (Im A)^⟂ = Ker(A')
+    full_primal(α) = A * α + b
+    proxy(α) = bregman_generator(full_primal(α), geometry, model) - α' * δ
+
+    function g!(gradient, α)
+        η = legendre_dual(full_primal(α), geometry, model)
+        gradient .= A' * η - δ
+    end
+
+    function h!(hessian, α)
+        # NOTE for performance reasons, could use aoto-diff to evaluate this...
+        G = metric(full_primal(α), geometry, model)
+        hessian .= A' * G * A
+    end
+
+    # Optimize the function
+    # Set a very low tolerance on the gradient
+    # TODO add gradient tolerance
+    result = optimize(proxy, g!, h!, x0, Newton())
+    # result = optimize(proxy, g!, x0, ConjugateGradient())
+    # result = optimize(proxy, x0, Newton(); autodiff= :forward)
+
+    # method = ConjugateGradient(linesearch=BackTracking())
+    # result = optimize(proxy, x0, method=method; autodiff=:forward,
+    #                   g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
+
+    if(Optim.converged(result) == false)
+        @show result
+        @show b
+        @show δ
+        @show x0
+        error("Could not convert from mixed to primal co-ordinates")
+    end
+
+    α = Optim.minimizer(result)
+    full_primal(α)
+end
+
 """
     dual_bregman_generator(θ, geometry, model)
 
