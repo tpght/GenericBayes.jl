@@ -16,3 +16,5 @@ include("HamiltonianMonteCarlo.jl")
 
 include("CustomARS.jl")
 include("AdaptiveRejectionSampler.jl")
+
+include("MIterativeGeneral.jl")

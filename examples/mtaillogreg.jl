@@ -25,7 +25,7 @@ N = 100                        # Number of samples
 subsampler = SphericalRandomWalk(0.2)
 subsamples = Int(100)
 # tail_sampler = MTailRecursiveOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
-it_sampler = MIterativeOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
+it_sampler = EIterativeOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
 sampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), k, subsampler, subsamples)
 
 rng = MersenneTwister(1234)
@@ -42,6 +42,10 @@ samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
 rng = MersenneTwister(1234)
 @time it_samples = sample(rng, model, it_sampler, N, chain_type=MCMCChains.Chains);
 Chains(it_samples)
+
+@show it_samples == samples
+@show it_samples[10], samples[10]
+@show maximum(norm(it_samples - samples))
 
 if(p == 2)
     plot(model, it_samples, 1.0)

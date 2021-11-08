@@ -253,6 +253,71 @@ function metric_upperright(θ, geometry::Bregman, model::BayesModel, k::Int)
     metric(θ, geometry, model)[1:k, (k+1):end]
 end
 
+metric(θ, generator::Function) = ForwardDiff.hessian(generator, θ)
+metric(θ, generator::Function, k::Int) = ForwardDiff.hessian( x-> generator([x; θ[(k+1):end]]), θ[1:k])
+legendre_dual(θ, generator::Function) = ForwardDiff.gradient(generator, θ)
+function legendre_dual(θ, generator::Function, k::Int)
+    proxy(x) = generator([x; θ[(k+1):end]])
+    [ForwardDiff.gradient(proxy, θ[1:k]); θ[(k+1):end]]
+end
+
+function inverse_legendre_dual(ξ::Vector{T}, generator::Function,
+                               k::Int; x0=nothing) where T<:Real
+    primal = ξ[(k+1):end]
+    η_k = ξ[1:k]
+
+    if(x0 == nothing)
+        x0 = ones(T, k)
+    else
+        # Seemingly have to do this to convert to type T (autodiff types)
+        x0 = zeros(T,k) + x0
+    end
+
+    # Define cost function
+    full_primal(x) = [x; primal]
+    proxy(x) = generator(full_primal(x)) - x' * η_k
+
+    function g!(gradient, x)
+        gradient .= legendre_dual(full_primal(x), generator, k)[1:k] - η_k
+    end
+
+    function h!(hessian, x)
+        hessian .= metric(full_primal(x), generator, k)
+    end
+
+    # Optimize the function
+    # Set a very low tolerance on the gradient
+    # TODO add gradient tolerance
+    result = optimize(proxy, g!, h!, x0, Newton())
+    # result = optimize(proxy, g!, x0, ConjugateGradient())
+    # result = optimize(proxy, x0, Newton(); autodiff= :forward)
+
+    # method = ConjugateGradient(linesearch=BackTracking())
+    # result = optimize(proxy, x0, method=method; autodiff=:forward,
+    #                   g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
+
+    if(Optim.converged(result) == false)
+        @show result
+        # @show k
+        error("Could not convert from mixed to primal co-ordinates")
+    end
+
+    θ = Optim.minimizer(result)
+    [θ; primal]
+end
+
+function inverse_legendre_dual(η::Vector{T}, generator::Function; x0=nothing) where T<:Real
+    inverse_legendre_dual(η, generator, length(η), x0=x0)
+end
+
+# Returns logabsdet of upper-left k × k block of the metric
+function logabsdetmetric(θ, generator::Function, k::Int)
+    proxy(x) = generator([x; θ[(k+1):end]])
+    logabsdet(ForwardDiff.hessian(proxy, θ[1:k]))[1]
+end
+
+logabsdetmetric(θ, generator::Function) = logabsdet(metric(θ, generator))[1]
+
 # """
 #     metric(η::DualParameter{T, G, P}, geometry::Bregman, model::BayesModel)
 

@@ -28,7 +28,7 @@ function sample(rng::AbstractRNG, model::BayesModel,
     # https://github.com/TuringLang/AdvancedHMC.jl
 
     # Use mode of the distribution as starting point
-    initial_θ = max_posterior(model, zeros(dimension(model)))
+    initial_θ = zeros(dimension(model))
 
     # Define the target distribution
     ℓπ(θ) = log_posterior_density(model, θ)

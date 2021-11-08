@@ -31,7 +31,7 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = max_posterior(model, zeros(p))
+        state = zeros(p)
         return state, state
     end
 
@@ -73,12 +73,13 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
 
         # Draw samples from the k-dimensional dist. with log-density eflat_target
         subsamples = AbstractMCMC.sample(rng,
-                                         LogDensityModel(target, k),
-                                         sampler.subsampler, sampler.subsamples,
-                                         progress=false)
+                                        LogDensityModel(target, k),
+                                        sampler.subsampler, sampler.subsamples,
+                                        progress=false)
 
         # Save a subsample in the current block
-        θ[block_inds] .= subsamples[end]
+        θ[block_inds] .= subsamples.value[end, :].data # A convoluted way of
+        # getting the last sample
 
         # embed into the ambient space
         embed = inverse_legendre_dual([ηc; θ[[block_inds; upper_inds]]],

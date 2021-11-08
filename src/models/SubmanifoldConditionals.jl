@@ -29,6 +29,19 @@ function log_posterior_density(model::MFlatConditionalGibbs, θok)
 end
 
 
+function bundle_samples(
+    samples,
+    model::SubmanifoldConditional,
+    ::AbstractMCMC.AbstractSampler,
+    current_state::Any,
+    ::Type
+)
+    # ONLY interested in last sample (embedding)
+    # TODO Make this the embedding...
+    return current_state
+end
+
+
 """
     EFlatConditionalGibbs
 

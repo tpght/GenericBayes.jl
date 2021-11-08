@@ -38,7 +38,7 @@ function step(rng, model::BayesModel, sampler::IterativeNaturalGradient,
 
     # Compute dual co-ordinates for everything but the final block
     # TODO Save this between Markov steps
-    η = legendre_dual(θ, sampler.geometry, model, p - 1)
+    η = legendre_dual(θ, sampler.geometry, model)
 
     # Stores the basis (Gram-Schmidt-ed vectors)
     A = diagm(ones(p))

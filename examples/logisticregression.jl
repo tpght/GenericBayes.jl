@@ -4,7 +4,7 @@ using StatsFuns, Plots, MCMCChains, ForwardDiff, Random
 # Set a random seed
 rng = MersenneTwister(1234)
 
-p = 6                           # Number of coefficients
+p = 2                           # Number of coefficients
 n = 100                         # Number of observations (data)
 
 # Generate design matrix
@@ -28,6 +28,8 @@ sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), l, subsampler, subsamp
 
 @time samples = sample(model, sampler, N, chain_type=MCMCChains.Chains)
 chain = Chains(samples)
+
+ess=ess_rhat(chain)
 
 HMCsamples = sample(model, HamiltonianMonteCarlo(true, 100), N,
                     chain_type=MCMCChains.Chains)

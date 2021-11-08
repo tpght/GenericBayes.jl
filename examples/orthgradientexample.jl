@@ -20,25 +20,47 @@ end
 
 # Create samplers
 p = 2
-l = 1                           # Dimension of embedded m-flat submanifold
+block_size = 1
 N = 100                        # Number of samples
-subsampler = SphericalRandomWalk(0.5)
+subsampler = SphericalRandomWalk(0.6)
 subsamples = Int(50)
 
-osampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
-insampler = IterativeNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
+# osampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
+# sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), 1, subsampler, subsamples)
+# gsampler = GeneralNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
+ggibbssampler = GeneralMGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
+mitsampler = MIterativeOrthogonalGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
 
 rng = MersenneTwister(1234)
 model = make_model(rng, p)
 
-rng = MersenneTwister(1234)
-@time osamples = sample(rng, model, osampler, N, chain_type=MCMCChains.Chains);
-Chains(samples)
+# rng = MersenneTwister(1234)
+# @time osamples = sample(rng, model, osampler, N, chain_type=MCMCChains.Chains);
+# Chains(osamples)
+
+# rng = MersenneTwister(1234)
+# @time samples = sample(rng, model, sampler, N, chain_type=MCMCChains.Chains);
+# Chains(samples)
+
+# rng = MersenneTwister(1234)
+# @time msamples = sample(rng, model, msampler, N, chain_type=MCMCChains.Chains);
+# Chains(msamples)
 
 rng = MersenneTwister(1234)
-@time insamples = sample(rng, model, insampler, N, chain_type=MCMCChains.Chains);
-Chains(samples)
+ggibbssamples = sample(rng, model, ggibbssampler, N, chain_type=MCMCChains.Chains);
+# Chains(ggibbssamples)
+
+rng = MersenneTwister(1234)
+mitsamples = sample(rng, model, mitsampler, N, chain_type=MCMCChains.Chains);
+
+# rng = MersenneTwister(1234)
+# @time gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
+# Chains(gsamples)
 
 if(p == 2)
-    plot(model, gsamples, 1.0)
+    plot(model, ggibbssamples, 1.0)
 end
+
+# @show maximum(norm(ggibbssamples - samples))
+@show maximum(norm(ggibbssamples - mitsamples))
+# @show maximum(norm(gsamples - osamples))
