@@ -27,8 +27,10 @@ function sample(rng::AbstractRNG, model::BayesModel,
     # The following is adapted from the minimal example on
     # https://github.com/TuringLang/AdvancedHMC.jl
 
+    start=time()
+
     # Use mode of the distribution as starting point
-    initial_θ = zeros(dimension(model))
+    initial_θ = ones(dimension(model))
 
     # Define the target distribution
     ℓπ(θ) = log_posterior_density(model, θ)
@@ -63,5 +65,8 @@ function sample(rng::AbstractRNG, model::BayesModel,
                             sampler.n_adapts;
                             progress=progress)
 
-    return samples
+    stop=time()
+    times = (start=start,stop=stop)
+    return bundle_samples(samples, model, sampler, samples[end],
+                          MCMCChains.Chains, stats=times)
 end

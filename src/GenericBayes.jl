@@ -1,7 +1,7 @@
 module GenericBayes
 
 using StatsBase, LinearAlgebra, ForwardDiff, Optim, AbstractMCMC, Distributions
-using StatsFuns, MCMCChains, Plots, LineSearches, AdvancedHMC, Random, InvertedIndices
+using StatsFuns, MCMCChains, Plots, LineSearches, AdvancedHMC, Random, JTwalk
 import Base.Vector, Base.Array, Base.length
 import AbstractMCMC.AbstractModel, AbstractMCMC.bundle_samples
 import Distributions.sample, Distributions.loglikelihood
@@ -38,7 +38,7 @@ include("samplers/Samplers.jl")
 function bundle_samples(
     samples,
     model::BayesModel,
-    sampler::AbstractSampler,
+    sampler::AbstractMCMC.AbstractSampler,
     current_state::Any,
     ::Type;
     kwargs...

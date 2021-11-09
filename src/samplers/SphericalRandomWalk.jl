@@ -8,6 +8,7 @@ Random walk, Gaussian proposal with a spherical covariance.
 """
 struct SphericalRandomWalk{T<:Real} <: AbstractSampler
     StepSize::T                 # Standard deviation of random walk proposal
+    initial_θ::Vector{T}
 end
 
 """
@@ -20,8 +21,7 @@ function step(rng, model::BayesModel, sampler::SphericalRandomWalk{T},
               current_state=nothing; kwargs...) where T<:Real
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = zeros(dimension(model))
-        return state, state
+        return sampler.initial_θ, sampler.initial_θ
     end
 
     # Generate a proposal

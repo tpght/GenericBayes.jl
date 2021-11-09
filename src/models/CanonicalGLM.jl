@@ -35,3 +35,9 @@ function loglikelihood(model::CanonicalGLM{D}, β) where D<:Distribution
     mean = inverse_canonical_link.(D, linear_comb)
     data_generator = loglikelihood(Product(D.(mean)), model.y)
 end
+
+function hessian_log_posterior_density(model::GLM{D}, θ) where D<:Distribution
+    # Default uses autodiff
+    proxy(x) = log_posterior_density(model, x)
+    ForwardDiff.hessian(proxy, θ)
+end

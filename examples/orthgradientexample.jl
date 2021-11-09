@@ -22,14 +22,15 @@ end
 p = 2
 block_size = 1
 N = 100                        # Number of samples
-subsampler = SphericalRandomWalk(0.6)
-subsamples = Int(50)
+subsampler = TWalk(zeros(block_size))
+subsamples = Int(1000)
 
 # osampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
 # sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), 1, subsampler, subsamples)
 # gsampler = GeneralNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
 ggibbssampler = GeneralMGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
-mitsampler = MIterativeOrthogonalGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
+mitsampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
+hmcsampler = HamiltonianMonteCarlo(true, 100)
 
 rng = MersenneTwister(1234)
 model = make_model(rng, p)
@@ -53,14 +54,20 @@ ggibbssamples = sample(rng, model, ggibbssampler, N, chain_type=MCMCChains.Chain
 rng = MersenneTwister(1234)
 mitsamples = sample(rng, model, mitsampler, N, chain_type=MCMCChains.Chains);
 
+rng = MersenneTwister(1234)
+hmcsamples = sample(rng, model, hmcsampler, N, chain_type=MCMCChains.Chains);
+
 # rng = MersenneTwister(1234)
 # @time gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
 # Chains(gsamples)
 
+v = ggibbssamples.value.data[:,:,1]
+v = [x for x in eachrow(v)]
+
 if(p == 2)
-    plot(model, ggibbssamples, 1.0)
+    plot(model, v, 1.0)
 end
 
 # @show maximum(norm(ggibbssamples - samples))
-@show maximum(norm(ggibbssamples - mitsamples))
+@show maximum(norm(ggibbssamples.value - mitsamples.value))
 # @show maximum(norm(gsamples - osamples))

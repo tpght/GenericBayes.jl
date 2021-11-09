@@ -31,7 +31,7 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = zeros(p)
+        state = ones(p)
         return state, state
     end
 
@@ -72,6 +72,7 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
         end
 
         # Draw samples from the k-dimensional dist. with log-density eflat_target
+        sampler.subsampler.initial_θ .= θ[block_inds]
         subsamples = AbstractMCMC.sample(rng,
                                         LogDensityModel(target, k),
                                         sampler.subsampler, sampler.subsamples,

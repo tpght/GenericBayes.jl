@@ -103,7 +103,7 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        θ = zeros(p)
+        θ = ones(p)
         # η = legendre_dual(θ, geometry(sampler), model, p-k)
         # return θ, [θ, η]
         return θ, θ
@@ -127,9 +127,12 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
 
         η = legendre_dual(block_model.θ, geometry(sampler), model)
         lower_inds = 1:((block-1)*bs)
+        block_inds = ((block-1)*bs+1):(block*bs)
         Ap = A[:,lower_inds]
         block_model.δ[lower_inds] .= Ap' * η
 
+        # Get initial guess from current value of θ
+        subsampler(sampler).initial_θ .= A[:,block_inds]' * block_model.θ
         subsample = AbstractMCMC.sample(rng,
                                         block_model,
                                         subsampler(sampler),
@@ -210,10 +213,9 @@ function log_posterior_density(model::BlockModel{T}, x::Vector{T}) where T<:Real
     GenericBayes.logπ(model.ambient_model, embed) - jac_term
 end
 
-function bundle_samples(
-    samples,
+function bundle_samples(samples,
     model::BlockModel,
-    sampler,
+    sampler::AbstractSampler,
     current_state::Any,
     ::Type;
     kwargs...

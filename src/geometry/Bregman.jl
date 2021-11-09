@@ -43,11 +43,11 @@ function bregman_generator(θ, geometry::NegativeLogDensity, model::BayesModel)
 end
 
 function legendre_dual(θ, geometry::NegativeLogDensity, model::BayesModel)
-    ForwardDiff.gradient(x -> -logπ(model, x), θ)
+    -grad_log_posterior_density(model, θ)
 end
 
 function metric(θ, geometry::NegativeLogDensity, model::BayesModel)
-    ForwardDiff.hessian(x -> -logπ(model, x), θ)
+    -hessian_log_posterior_density(model, θ)
 end
 
 function metric(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int)
@@ -139,8 +139,8 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
     # Optimize the function
     # Set a very low tolerance on the gradient
     # TODO add gradient tolerance
-    result = optimize(proxy, g!, h!, x0, Newton())
-    # result = optimize(proxy, g!, x0, ConjugateGradient())
+    # result = optimize(proxy, g!, h!, x0, Newton())
+    result = optimize(proxy, g!, x0, ConjugateGradient())
     # result = optimize(proxy, x0, Newton(); autodiff= :forward)
 
     # method = ConjugateGradient(linesearch=BackTracking())
@@ -196,8 +196,8 @@ function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
     # Optimize the function
     # Set a very low tolerance on the gradient
     # TODO add gradient tolerance
-    result = optimize(proxy, g!, h!, x0, Newton())
-    # result = optimize(proxy, g!, x0, ConjugateGradient())
+    # result = optimize(proxy, g!, h!, x0, Newton())
+    result = optimize(proxy, g!, x0, ConjugateGradient())
     # result = optimize(proxy, x0, Newton(); autodiff= :forward)
 
     # method = ConjugateGradient(linesearch=BackTracking())
@@ -383,9 +383,12 @@ is the identity.
 struct Euclidean<:Bregman end
 
 bregman_generator(θ, geometry::Euclidean, model::BayesModel) = 0.5 * θ' * θ
-
+metric(θ, geometry::Euclidean, model::BayesModel) = diagm(ones(model))
 legendre_dual(θ, geometry::Euclidean, model::BayesModel) = θ
 inverse_legendre_dual(θ, geometry::Euclidean, model::BayesModel) = θ
+
+logabsdetmetric(θ, geometry::Euclidean, model::BayesModel, k::Int) = 0.0
+logabsdetmetric(θ, geometry::Euclidean, model::BayesModel) = 0.0
 
 # function metric(θ::P, geometry::Euclidean{P}, model::BayesModel) where
 #     P<:Parameter{T} where T<:Real

@@ -61,22 +61,21 @@ function grad_log_posterior_density(model::BayesModel, θ)
 end
 const ∇logπ = grad_log_posterior_density
 
-# """
-#     hessian_log_posterior_density(model, θ)
+"""
+    hessian_log_posterior_density(model, θ)
 
-# Matrix of second-order partial derivatives of `log_posterior_density` with
-# respect to components of `θ`.
+Matrix of second-order partial derivatives of `log_posterior_density` with
+respect to components of `θ`.
 
-# Default uses automatic differentiation.
-# Alias function names: `∇²logπ`.
-# """
-# function hessian_log_posterior_density(model::BayesModel, θ::Parameter)
-#     # Default uses autodiff
-#     ParameterType = Base.typename(typeof(θ)).wrapper
-#     proxy(x) = log_posterior_density(model, ParameterType(x))
-#     ForwardDiff.hessian(proxy, Array(θ))
-# end
-# const ∇²logπ = hessian_log_posterior_density
+Default uses automatic differentiation.
+Alias function names: `∇²logπ`.
+"""
+function hessian_log_posterior_density(model::BayesModel, θ)
+    # Default uses autodiff
+    proxy(x) = log_posterior_density(model, x)
+    ForwardDiff.hessian(proxy, θ)
+end
+const ∇²logπ = hessian_log_posterior_density
 
 # include("Diaconis.jl")
 # include("LinearGaussian.jl")

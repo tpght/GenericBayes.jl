@@ -29,17 +29,18 @@ function log_posterior_density(model::MFlatConditionalGibbs, θok)
 end
 
 
-function bundle_samples(
-    samples,
-    model::SubmanifoldConditional,
-    ::AbstractMCMC.AbstractSampler,
+function bundle_samples(samples,
+    model::MFlatConditionalGibbs,
+    sampler::AbstractMCMC.AbstractSampler,
     current_state::Any,
-    ::Type
+    ::Type;
+    kwargs...
 )
     # ONLY interested in last sample (embedding)
     # TODO Make this the embedding...
     return current_state
 end
+
 
 
 """
@@ -59,4 +60,16 @@ dimension(model::EFlatConditionalGibbs) = dimension(model.ambient_model) - lengt
 function log_posterior_density(model::EFlatConditionalGibbs, θk)
     @assert length(θk) == dimension(model) "Input size does not equal model dimension"
     logπ(model.ambient_model, [θk; model.θok])
+end
+
+function bundle_samples(samples,
+    model::EFlatConditionalGibbs,
+    sampler::AbstractMCMC.AbstractSampler,
+    current_state::Any,
+    ::Type;
+    kwargs...
+)
+    # ONLY interested in last sample (embedding)
+    # TODO Make this the embedding...
+    return current_state
 end
