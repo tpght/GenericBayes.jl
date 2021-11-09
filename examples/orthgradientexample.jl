@@ -1,5 +1,5 @@
 using GenericBayes, Distributions, LinearAlgebra
-using StatsFuns, Plots, MCMCChains, ForwardDiff, Random
+using StatsFuns, Plots, ForwardDiff, Random
 
 function make_model(rng, p)
     n = 100                         # Number of observations (data)
@@ -15,7 +15,7 @@ function make_model(rng, p)
     Σ = diagm(ones(p))
     Σ[2,1] = ρ
     Σ[1,2] = ρ
-    CanonicalGLM{Bernoulli, Float64}(X, y, zeros(p), Σ)
+    CanonicalGLM(X, y, zeros(p), Σ, Bernoulli)
 end
 
 # Create samplers
