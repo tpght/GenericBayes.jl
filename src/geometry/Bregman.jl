@@ -51,7 +51,7 @@ function metric(θ, geometry::NegativeLogDensity, model::BayesModel)
 end
 
 function metric(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int)
-    ForwardDiff.hessian(x -> -logπ(model, [x; θ[(k+1):end]]), θ[1:k])
+    -hessian_log_posterior_density(model, θ, k)
 end
 
 """

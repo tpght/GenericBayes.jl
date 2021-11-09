@@ -54,6 +54,11 @@ struct GeneralNaturalGradient{T<:Real} <: MIterativeGeneral
     initial_θ::Vector{T}
 end
 
+function set_initial(sampler::GeneralNaturalGradient{T}, v::Vector{T}) where
+    T<:Real
+    sampler.initial_θ .= v
+end
+
 
 function block_basis!(A::Matrix{T}, θ::Vector{T}, model::BayesModel,
                      sampler::GeneralNaturalGradient,
@@ -104,7 +109,7 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        θ = sampler.initial_θ
+        θ = sampler.initial_θ[1:p]
         # η = legendre_dual(θ, geometry(sampler), model, p-k)
         # return θ, [θ, η]
         return θ, θ
