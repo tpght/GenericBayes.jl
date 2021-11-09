@@ -14,7 +14,7 @@ end
 
 function set_initial(sampler::SphericalRandomWalk{T}, initial_θ::Vector{T}) where
     T<:Real
-    sampler.initial_θ = initial_θ
+    sampler.initial_θ .= initial_θ
 end
 
 """

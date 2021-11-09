@@ -59,6 +59,18 @@ function grad_log_posterior_density(model::BayesModel, θ)
     # Default uses autodiff
     ForwardDiff.gradient(x -> log_posterior_density(model, x), θ)
 end
+
+function grad_log_posterior_density(model::BayesModel, θ, k::Int)
+    g = grad_log_posteior_density(model, θ)
+    g[1:k]
+end
+
+function grad_log_posterior_density(model::BayesModel, θ::Vector{T},
+    A::Array{T}) where D<:Bernoulli where T<:Real
+
+    A' * grad_log_posterior_density(model, θ)
+end
+
 const ∇logπ = grad_log_posterior_density
 
 """
@@ -76,6 +88,17 @@ function hessian_log_posterior_density(model::BayesModel, θ)
     ForwardDiff.hessian(proxy, θ)
 end
 const ∇²logπ = hessian_log_posterior_density
+
+function hessian_log_posterior_density(model::BayesModel, θ, k::Int)
+    h = hessian_log_posterior_density(model, θ)
+    h[1:k, 1:k]
+end
+
+function hessian_log_posterior_density(model::BayesModel, θ::Vector{T},
+    A::Array{T}) where T<:Real
+    h = hessian_log_posterior_density(model, θ)
+    A' * h * A
+end
 
 # include("Diaconis.jl")
 # include("LinearGaussian.jl")

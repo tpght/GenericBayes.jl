@@ -6,11 +6,12 @@ export MRecursiveOrthogonalGibbs
 
 Orthogonal Gibbs, recursing on e-flat submanifolds.
 """
-struct MRecursiveOrthogonalGibbs <: AbstractSampler
+struct MRecursiveOrthogonalGibbs{T<:Real} <: AbstractSampler
     geometry::Bregman           # Geometry to be used in the sampler
     k::Int                      # Dimension of the e-flat submanifold
     subsampler::AbstractSampler # Sampler to be used on each m-flat submanifold
     subsamples::Int                  # Number of times to run the embedded sampler
+    initial_θ::Vector{T}
 end
 
 
@@ -34,7 +35,7 @@ function step(rng, outer_model::BayesModel, sampler::MRecursiveOrthogonalGibbs,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = ones(dimension(outer_model))
+        state = sampler.initial_θ
         return state, state
     end
 
@@ -49,6 +50,7 @@ function step(rng, outer_model::BayesModel, sampler::MRecursiveOrthogonalGibbs,
         # Check if we're on the last m-flat submanifold
         if(length(θ0) <= k)
             # Sample on the remaining variables
+            set_initial(sampler.subsampler, θ0)
             samples = AbstractMCMC.sample(rng, model, sampler.subsampler,
                                           sampler.subsamples, progress=false)
             return samples[end]
@@ -58,6 +60,7 @@ function step(rng, outer_model::BayesModel, sampler::MRecursiveOrthogonalGibbs,
         # primal components being fixed. This is just a regular Gibbs update on
         # a k-dimensional hyperplane.
         econditional_model = EFlatConditionalGibbs(model, θ0[(k+1):end])
+        set_initial(sampler.subsampler, θ0[1:k])
         subsample = AbstractMCMC.sample(rng,
                                       econditional_model,
                                       sampler.subsampler, sampler.subsamples,

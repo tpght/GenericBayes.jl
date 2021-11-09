@@ -46,12 +46,29 @@ function legendre_dual(θ, geometry::NegativeLogDensity, model::BayesModel)
     -grad_log_posterior_density(model, θ)
 end
 
+function legendre_dual(θ::Vector{T}, geometry::NegativeLogDensity,
+                       model::BayesModel, A::Matrix{T}) where T<:Real
+    # Should return A' * ∇F
+    -grad_log_posterior_density(model, θ, A)
+end
+
+function legendre_dual(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int)
+    ηk = -grad_log_posterior_density(model, θ, k)
+    [ηk; θ[(k+1):end]]
+end
+
 function metric(θ, geometry::NegativeLogDensity, model::BayesModel)
     -hessian_log_posterior_density(model, θ)
 end
 
 function metric(θ, geometry::NegativeLogDensity, model::BayesModel, k::Int)
     -hessian_log_posterior_density(model, θ, k)
+end
+
+function metric(θ::Vector{T}, geometry::NegativeLogDensity, model::BayesModel,
+                A::Matrix{T}) where T<:Real
+    # Should return A' * ∇² F * A
+    -hessian_log_posterior_density(model, θ, A)
 end
 
 """
@@ -161,11 +178,12 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
 end
 
 function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
- geometry::Bregman, model::BayesModel; x0::Vector{T}) where T<:Real
+ geometry::Bregman, model::BayesModel; x0=nothing) where T<:Real
     @assert dimension(model) == length(b) "Model dimension does not match input"
     k = length(δ)
     if(k == 0) return b end
-    @assert k == size(A)[2] "Number of columns in A does not match
+
+    @assert size(A)[2] == k "Number of columns in A does not match
                                     length of δ"
 
     if(x0 == nothing)
@@ -178,19 +196,18 @@ function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
     # Define cost function
     # For conjugate gradient, A is an orthogonal matrix. Therefore, A' A is the
     # k × k identity.
+    # Same is true for Gibbs.
     # Calculate projection b of θ onto (Im A)^⟂ = Ker(A')
     full_primal(α) = A * α + b
     proxy(α) = bregman_generator(full_primal(α), geometry, model) - α' * δ
 
     function g!(gradient, α)
-        η = legendre_dual(full_primal(α), geometry, model)
-        gradient .= A' * η - δ
+        gradient .= legendre_dual(full_primal(α), geometry, model, A) - δ
     end
 
     function h!(hessian, α)
         # NOTE for performance reasons, could use aoto-diff to evaluate this...
-        G = metric(full_primal(α), geometry, model)
-        hessian .= A' * G * A
+        hessian .= metric(full_primal(α), geometry, model, A)
     end
 
     # Optimize the function
@@ -233,6 +250,13 @@ end
 Compute the Riemannian metric, i.e. the hessian of `bregman_generator`.
 """
 function metric(θ, geometry::Bregman, model::BayesModel) end
+
+function metric(θ::Vector{T}, geometry::Bregman, model::BayesModel,
+    A::Matrix{T}) where T<:Real
+    @assert dimension(model) == length(θ) "Model dimension does not match input"
+    G = metric(θ, geometry, model)
+    A' * G * A
+end
 
 function metric(θ, geometry::Bregman, model::BayesModel, k::Int)
     @assert dimension(model) == length(θ) "Model dimension does not match input"
@@ -317,6 +341,17 @@ function logabsdetmetric(θ, generator::Function, k::Int)
 end
 
 logabsdetmetric(θ, generator::Function) = logabsdet(metric(θ, generator))[1]
+
+
+function logabsdetmetric(θ::Vector{T}, geometry::Bregman, model::BayesModel,
+                         A::Matrix{T}) where T<:Real
+    G = metric(θ, geometry, model, A)
+    if(G isa Float64)
+        # This shouldn't happen at all, but hey...
+        return log(G)
+    end
+    logabsdet(metric(θ, geometry, model, A))[1]
+end
 
 # """
 #     metric(η::DualParameter{T, G, P}, geometry::Bregman, model::BayesModel)

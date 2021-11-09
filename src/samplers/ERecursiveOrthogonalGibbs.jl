@@ -29,7 +29,7 @@ function step(rng, outer_model::BayesModel, sampler::ERecursiveOrthogonalGibbs,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = max_posterior(outer_model, zeros(dimension(outer_model)))
+        state = zeros(dimension(outer_model))
         return state, state
     end
 
