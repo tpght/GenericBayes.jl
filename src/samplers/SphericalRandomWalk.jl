@@ -11,6 +11,12 @@ struct SphericalRandomWalk{T<:Real} <: AbstractSampler
     initial_θ::Vector{T}
 end
 
+
+function set_initial(sampler::SphericalRandomWalk{T}, initial_θ::Vector{T}) where
+    T<:Real
+    sampler.initial_θ = initial_θ
+end
+
 """
     step(rng, model::BayesModel, sampler::ProductManifoldHMC,
               state=nothing; kwargs...)

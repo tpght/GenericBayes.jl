@@ -21,19 +21,23 @@ end
 # Create samplers
 p = 2
 block_size = 1
-N = 100                        # Number of samples
-subsampler = TWalk(zeros(block_size))
-subsamples = Int(1000)
-
+N = 5000                        # Number of samples
+subsampler = ARMS(2.0, false)
+subsamples = Int(1)
+θ0 = zeros(p)
 # osampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
 # sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), 1, subsampler, subsamples)
-# gsampler = GeneralNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
-ggibbssampler = GeneralMGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
-mitsampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
-hmcsampler = HamiltonianMonteCarlo(true, 100)
+gsampler = GeneralNaturalGradient(NegativeLogDensity(), subsampler, subsamples, θ0)
+# arms = ARMS(-10.0, 10.0, false)
+# ggibbssampler = GeneralMGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
+# mitsampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), block_size, subsampler, subsamples)
+# hmcsampler = HamiltonianMonteCarlo(true, 100)
 
 rng = MersenneTwister(1234)
 model = make_model(rng, p)
+
+rng = MersenneTwister(1234)
+gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
 
 # rng = MersenneTwister(1234)
 # @time osamples = sample(rng, model, osampler, N, chain_type=MCMCChains.Chains);
@@ -47,21 +51,18 @@ model = make_model(rng, p)
 # @time msamples = sample(rng, model, msampler, N, chain_type=MCMCChains.Chains);
 # Chains(msamples)
 
-rng = MersenneTwister(1234)
-ggibbssamples = sample(rng, model, ggibbssampler, N, chain_type=MCMCChains.Chains);
+# rng = MersenneTwister(1234)
+# ggibbssamples = sample(rng, model, ggibbssampler, N, chain_type=MCMCChains.Chains);
 # Chains(ggibbssamples)
 
-rng = MersenneTwister(1234)
-mitsamples = sample(rng, model, mitsampler, N, chain_type=MCMCChains.Chains);
-
-rng = MersenneTwister(1234)
-hmcsamples = sample(rng, model, hmcsampler, N, chain_type=MCMCChains.Chains);
+# rng = MersenneTwister(1234)
+# mitsamples = sample(rng, model, mitsampler, N, chain_type=MCMCChains.Chains);
 
 # rng = MersenneTwister(1234)
-# @time gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
-# Chains(gsamples)
+# hmcsamples = sample(rng, model, hmcsampler, N, chain_type=MCMCChains.Chains);
 
-v = ggibbssamples.value.data[:,:,1]
+
+v = gsamples.value.data[:,:,1]
 v = [x for x in eachrow(v)]
 
 if(p == 2)

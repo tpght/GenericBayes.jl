@@ -47,10 +47,11 @@ Returns the subsampler for a given iterative general sampler.
 """
 function subsamples(sampler::MIterativeGeneral)::Int end
 
-struct GeneralNaturalGradient <: MIterativeGeneral
+struct GeneralNaturalGradient{T<:Real} <: MIterativeGeneral
     geometry::Bregman           # Geometry to be used in the sampler
     subsampler::AbstractSampler # Sampler to be used on each e-flat submanifold
     subsamples::Int                  # Number of times to run the embedded sampler
+    initial_θ::Vector{T}
 end
 
 
@@ -103,7 +104,7 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        θ = ones(p)
+        θ = sampler.initial_θ
         # η = legendre_dual(θ, geometry(sampler), model, p-k)
         # return θ, [θ, η]
         return θ, θ
@@ -132,7 +133,7 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
         block_model.δ[lower_inds] .= Ap' * η
 
         # Get initial guess from current value of θ
-        subsampler(sampler).initial_θ .= A[:,block_inds]' * block_model.θ
+        set_initial(subsampler(sampler), A[:,block_inds]' * block_model.θ)
         subsample = AbstractMCMC.sample(rng,
                                         block_model,
                                         subsampler(sampler),

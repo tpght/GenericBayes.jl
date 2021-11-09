@@ -19,4 +19,4 @@ include("AdaptiveRejectionSampler.jl")
 
 include("MIterativeGeneral.jl")
 
-include("TWalk.jl")
+include("ARMS.jl")
