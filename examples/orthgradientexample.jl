@@ -27,10 +27,10 @@ subsampler = SphericalRandomWalk(0.75, zeros(1))
 subsamples = Int(20)
 θ0 = [1.5712046633289665; 1.6388795266403455]
 stop_after = 10
-# osampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
+#osampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
 # sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), 1, subsampler, subsamples)
-# gsampler = MOrthogonalGradient(NegativeLogDensity(), subsampler, subsamples,
-#                                θ0,stop_after)
+ gsampler = MOrthogonalGradient(NegativeLogDensity(), subsampler, subsamples,
+                                θ0,stop_after)
 # arms = ARMS(-10.0, 10.0, false)
 ggibbssampler = GeneralMGibbs(NegativeLogDensity(), block_size, subsampler,
                               subsamples, θ0)
@@ -41,10 +41,10 @@ hmcsampler = HamiltonianMonteCarlo(true, 100)
 rng = MersenneTwister(1234)
 model = make_model(rng, p)
 
-# rng = MersenneTwister(1234)
-# gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
-# @show min_ess_per_sec(gsamples)
-# @show min_ess(gsamples)
+rng = MersenneTwister(1234)
+gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
+@show min_ess_per_sec(gsamples)
+@show min_ess(gsamples)
 
 rng = MersenneTwister(1234)
 hmcsamples = sample(rng, model, hmcsampler, N, chain_type=MCMCChains.Chains);

@@ -76,7 +76,7 @@ end
 
 function set_initial(sampler::MOrthogonalGradient{T}, v::Vector{T}) where
     T<:Real
-    sampler.initial_θ .= v
+    sampler.initial_θ[1:length(v)] .= v
 end
 
 function block_basis!(A::Matrix{T}, θ::Vector{T}, model::BayesModel,
@@ -129,7 +129,8 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        return sampler.initial_θ, sampler.initial_θ
+        state = sampler.initial_θ[1:dimension(model)]
+        return state, state
         # η = legendre_dual(θ, geometry(sampler), model, p-k)
         # return θ, [θ, η]
     end
@@ -150,12 +151,12 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
         # Update the A matrix at the current point
         block_basis!(block_model.A, block_model.θ, model, sampler, block)
 
-        η = legendre_dual(block_model.θ, geometry(sampler), model)
-
         lower_inds = 1:((block-1)*bs)
         block_inds = ((block-1)*bs+1):(block*bs)
         Ap = A[:,lower_inds]
-        block_model.δ[lower_inds] .= Ap' * η
+
+        block_model.δ[lower_inds] .= legendre_dual(block_model.θ,
+                                                   geometry(sampler), model, Ap)
 
         # Get initial guess from current value of θ
         set_initial(subsampler(sampler), A[:,block_inds]' * block_model.θ)

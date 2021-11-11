@@ -67,7 +67,7 @@ function grad_log_posterior_density(model::CanonicalGLM{D,T}, β, k::Int) where 
 end
 
 function grad_log_posterior_density(model::CanonicalGLM{D,T}, β::Vector{T},
-    A::Array{T}) where D<:Bernoulli where T<:Real
+    A::Matrix{T}) where D<:Bernoulli where T<:Real
 
     linear_comb = model.X * β
     pr = logistic.(linear_comb)
@@ -91,7 +91,7 @@ function hessian_log_posterior_density(model::CanonicalGLM{D,T}, β, k::Int) whe
     Xp' * (Xp .* λ) - model.Q_p[1:k, 1:k]
 end
 
-function hessian_log_posterior_density(model::CanonicalGLM{D,T}, β::Vector{T}, A::Array{T}) where
+function hessian_log_posterior_density(model::CanonicalGLM{D,T}, β::Vector{T}, A::Matrix{T}) where
     D<:Bernoulli where T<:Real
 
     linear_comb = model.X * β

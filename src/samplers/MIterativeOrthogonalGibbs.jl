@@ -1,16 +1,22 @@
 import AbstractMCMC.AbstractSampler, AbstractMCMC.step
-export MIterativeOrthogonalGibbs
+export MIterativeOrthogonalGibbs, set_initial
 
 """
     ERecursiveOrthogonalGibbs
 
 Orthogonal Gibbs, recursing on e-flat submanifolds.
 """
-struct MIterativeOrthogonalGibbs <: AbstractSampler
+struct MIterativeOrthogonalGibbs{T<:Real} <: AbstractSampler
     geometry::Bregman           # Geometry to be used in the sampler
     k::Int                      # Dimension of the e-flat submanifold
     subsampler::AbstractSampler # Sampler to be used on each e-flat submanifold
     subsamples::Int                  # Number of times to run the embedded sampler
+    initial_θ::Vector{T}
+end
+
+function set_initial(sampler::MIterativeOrthogonalGibbs{T}, v::Vector{T}) where
+    T<:Real
+    sampler.initial_θ[1:length(v)] .= v
 end
 
 
@@ -31,7 +37,7 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = ones(p)
+        state = sampler.initial_θ[1:dimension(model)]
         return state, state
     end
 
@@ -72,7 +78,7 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
         end
 
         # Draw samples from the k-dimensional dist. with log-density eflat_target
-        sampler.subsampler.initial_θ .= θ[block_inds]
+        set_initial(sampler.subsampler, θ[block_inds])
         subsamples = AbstractMCMC.sample(rng,
                                         LogDensityModel(target, k),
                                         sampler.subsampler, sampler.subsamples,

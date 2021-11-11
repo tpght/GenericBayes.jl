@@ -66,7 +66,7 @@ function grad_log_posterior_density(model::BayesModel, θ, k::Int)
 end
 
 function grad_log_posterior_density(model::BayesModel, θ::Vector{T},
-    A::Array{T}) where D<:Bernoulli where T<:Real
+    A::Matrix{T}) where D<:Bernoulli where T<:Real
 
     A' * grad_log_posterior_density(model, θ)
 end
@@ -95,7 +95,7 @@ function hessian_log_posterior_density(model::BayesModel, θ, k::Int)
 end
 
 function hessian_log_posterior_density(model::BayesModel, θ::Vector{T},
-    A::Array{T}) where T<:Real
+    A::Matrix{T}) where T<:Real
     h = hessian_log_posterior_density(model, θ)
     A' * h * A
 end

@@ -6,9 +6,15 @@ export HamiltonianMonteCarlo
 
 Random walk, Gaussian proposal with a spherical covariance.
 """
-struct HamiltonianMonteCarlo <: AbstractSampler
+struct HamiltonianMonteCarlo{T<:Real} <: AbstractSampler
     dense::Bool                 # If false, use a diagonal preconditioner
     n_adapts::Integer           # Number of adaptation samples
+    initial_θ::Vector{T}
+end
+
+function set_initial(sampler::HamiltonianMonteCarlo{T}, v::Vector{T}) where
+    T<:Real
+    sampler.initial_θ[1:length(v)] .= v
 end
 
 """
@@ -30,7 +36,7 @@ function sample(rng::AbstractRNG, model::BayesModel,
     start=time()
 
     # Use mode of the distribution as starting point
-    initial_θ = ones(dimension(model))
+    initial_θ = sampler.initial_θ[1:dimension(model)]
 
     # Define the target distribution
     ℓπ(θ) = log_posterior_density(model, θ)
