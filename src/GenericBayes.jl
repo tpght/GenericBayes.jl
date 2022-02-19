@@ -33,6 +33,7 @@ include("opt/Opt.jl")
 include("geometry/Geometry.jl")
 include("models/Models.jl")
 include("vis/Density.jl")
+include("vis/FoliationPlots.jl")
 include("samplers/Samplers.jl")
 
 function bundle_samples(

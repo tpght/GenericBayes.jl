@@ -89,11 +89,11 @@ function block_basis!(A::Matrix{T}, θ::Vector{T}, model::BayesModel,
     # The following is a numerically stable Gram-Schmidt
     # Shamelessly taken from https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process
     A[:, block]=gradient
-    for j=1:(block-1)
-        A[:,block]=A[:,block]-(A[:,j]'*A[:,block]
-                    /(norm(A[:,j]))^2) * A[:,j]
-    end
-    A[:, block] = A[:, block]/norm(A[:, block]);
+    # for j=1:(block-1)
+    #     A[:,block]=A[:,block]-(A[:,j]'*A[:,block]
+    #                 /(norm(A[:,j]))^2) * A[:,j]
+    # end
+    # A[:, block] = A[:, block]/norm(A[:, block]);
 end
 
 block_size(sampler::MOrthogonalGradient) = 1
@@ -139,8 +139,8 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
     A = diagm(ones(p))
     δ = zeros(p)
 
-    block_model = BlockModel(A, δ, copy(current_state),
-                         ones(Int, 1), block_size(sampler),
+    block_model = BlockModel(A, δ, copy(current_state), zeros(p),
+                         ones(Int, 1),block_size(sampler),
                              sampler.geometry, model)
 
 
@@ -157,6 +157,10 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
 
         block_model.δ[lower_inds] .= legendre_dual(block_model.θ,
                                                    geometry(sampler), model, Ap)
+
+        if(block == 1)
+            block_model.b[:] = block_model.θ[:] - Ap * pinv(Ap) * block_model.θ[:]
+        end
 
         # Get initial guess from current value of θ
         set_initial(subsampler(sampler), A[:,block_inds]' * block_model.θ)
@@ -187,6 +191,7 @@ struct BlockModel{T<:Real} <: BayesModel
     A::Matrix{T}
     δ::Vector{T}
     θ::Vector{T}
+    b::Vector{T}
     block::Vector{Int}
     block_size::Int
     geometry::Bregman
@@ -217,12 +222,19 @@ function membed(x::Vector{T}, model::BlockModel{T}) where T<:Real
     # NOTE: possibly inefficiency here!
     # Don't have to compute this each time...
     # pinv(A)  = A' if A is ortho
-    b = θ - Ap * (Ap' * θ)
-    b = b + C * (x - (C' * b))
+
+    # Project onto (ImAp)^⟂, where Ap is basis vectors from earlier iterations.
+    #
+    # TEMP: Do we need this line???
+    model.b[:] = θ[:] - Ap * (pinv(Ap) * θ[:])
+    # model.b[:] = model.b[:] + C * (x - (C' * model.b[:]))
+    model.b[:] = model.b[:] + C * x
+    @show norm(Ap' * model.b[:])
+    @show norm(Ap' * C)
     x0 = Ap' * θ
     δ = model.δ[lower_inds]
 
-    inverse_legendre_dual(δ, b, Ap,
+    inverse_legendre_dual(δ, model.b, Ap,
                           model.geometry,
                           model.ambient_model, x0=x0)
 end

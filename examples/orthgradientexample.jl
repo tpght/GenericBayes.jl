@@ -21,7 +21,7 @@ end
 # Create samplers
 p = 2
 block_size = 1
-N = 1000                        # Number of samples
+N = 100                        # Number of samples
 # subsampler = ARMS(5.0, true)
 subsampler = SphericalRandomWalk(0.75, zeros(1))
 subsamples = Int(20)
@@ -29,27 +29,27 @@ subsamples = Int(20)
 stop_after = 10
 #osampler = OrthogonalNaturalGradient(NegativeLogDensity(), subsampler, subsamples)
 # sampler = ERecursiveOrthogonalGibbs(NegativeLogDensity(), 1, subsampler, subsamples)
- gsampler = MOrthogonalGradient(NegativeLogDensity(), subsampler, subsamples,
-                                θ0,stop_after)
+ # gsampler = MOrthogonalGradient(NegativeLogDensity(), subsampler, subsamples,
+ #                                θ0,stop_after)
 # arms = ARMS(-10.0, 10.0, false)
 ggibbssampler = GeneralMGibbs(NegativeLogDensity(), block_size, subsampler,
                               subsamples, θ0)
 msampler = MRecursiveOrthogonalGibbs(NegativeLogDensity(), block_size,
                                      subsampler, subsamples, θ0)
-hmcsampler = HamiltonianMonteCarlo(true, 100)
+# hmcsampler = HamiltonianMonteCarlo(true, 100)
 
 rng = MersenneTwister(1234)
 model = make_model(rng, p)
 
-rng = MersenneTwister(1234)
-gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
-@show min_ess_per_sec(gsamples)
-@show min_ess(gsamples)
+# rng = MersenneTwister(1234)
+# gsamples = sample(rng, model, gsampler, N, chain_type=MCMCChains.Chains);
+# @show min_ess_per_sec(gsamples)
+# @show min_ess(gsamples)
 
-rng = MersenneTwister(1234)
-hmcsamples = sample(rng, model, hmcsampler, N, chain_type=MCMCChains.Chains);
-@show min_ess_per_sec(hmcsamples)
-@show min_ess(hmcsamples)
+# rng = MersenneTwister(1234)
+# hmcsamples = sample(rng, model, hmcsampler, N, chain_type=MCMCChains.Chains);
+# @show min_ess_per_sec(hmcsamples)
+# @show min_ess(hmcsamples)
 
 # rng = MersenneTwister(1234)
 # @time osamples = sample(rng, model, osampler, N, chain_type=MCMCChains.Chains);

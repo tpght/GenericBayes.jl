@@ -108,6 +108,13 @@ function legendre_dual(θ, geometry::Bregman, model::BayesModel, k::Int)
     [ηk; θ[(k+1):end]]
 end
 
+function legendre_dual(θ::Vector{T}, geometry::Bregman,
+                       model::BayesModel, A::Matrix{T}) where T<:Real
+    # Should return A' * ∇F
+    η = legendre_dual(θ, geometry, model)
+    A' * η
+end
+
 """
     inverse_legendre_dual(η, geometry::G, model::BayesModel)
 
@@ -177,6 +184,16 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
     [θ; primal]
 end
 
+"""
+    inverse_legendre_dual
+
+# Arguments
+- `δ`: Fixed k-dimensional generalized dual component
+- `b`:
+- `A`: Matrix whose k columns...
+- `geometry`
+- `model`
+"""
 function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
  geometry::Bregman, model::BayesModel; x0=nothing) where T<:Real
     @assert dimension(model) == length(b) "Model dimension does not match input"
@@ -199,10 +216,10 @@ function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
     # Same is true for Gibbs.
     # Calculate projection b of θ onto (Im A)^⟂ = Ker(A')
     full_primal(α) = A * α + b
-    proxy(α) = bregman_generator(full_primal(α), geometry, model) - α' * δ
+    proxy(α) = bregman_generator(full_primal(α), geometry, model) - α' * A' * A * δ
 
     function g!(gradient, α)
-        gradient .= legendre_dual(full_primal(α), geometry, model, A) - δ
+        gradient .= legendre_dual(full_primal(α), geometry, model, A) - A' * A * δ
     end
 
     function h!(hessian, α)
@@ -213,8 +230,8 @@ function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
     # Optimize the function
     # Set a very low tolerance on the gradient
     # TODO add gradient tolerance
-    # result = optimize(proxy, g!, h!, x0, Newton())
-    result = optimize(proxy, g!, x0, ConjugateGradient())
+    result = optimize(proxy, g!, h!, x0, Newton())
+    # result = optimize(proxy, g!, x0, ConjugateGradient())
     # result = optimize(proxy, x0, Newton(); autodiff= :forward)
 
     # method = ConjugateGradient(linesearch=BackTracking())
