@@ -107,3 +107,4 @@ end
 include("CanonicalGLM.jl")
 include("SimpleGaussian.jl")
 include("SubmanifoldConditionals.jl")
+include("GaussianInverse.jl")

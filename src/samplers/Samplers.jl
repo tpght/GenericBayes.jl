@@ -18,5 +18,6 @@ include("CustomARS.jl")
 include("AdaptiveRejectionSampler.jl")
 
 include("MIterativeGeneral.jl")
+include("ConjugateGradientSampler.jl")
 
 include("ARMS.jl")
