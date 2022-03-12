@@ -7,7 +7,7 @@ rng = MersenneTwister(1234)
 
 
 # Example from Fox (2008)
-p = 10^3
+p = 5
 
 U = spdiagm(Pair(1, rand(p-1)),
             Pair(0, ones(p)))
@@ -15,16 +15,16 @@ U = spdiagm(Pair(1, rand(p-1)),
 Λ = U' * U
 
 
-w = ones(p)
+w = zeros(p)
 model = GaussianInverse(Λ, w)
-sampler = ConjugateGradientSampler(rand(p), p)
-N = 10000
+sampler = ConjugateGradientSampler(rand(p))
+N = 10^4
 
 samples=sample(model, sampler, N)
 
 # Look at samples.value.data to see individual samples
 # E.g. 50th sample
-plot(samples.value.data[9873, :, 1])
+plot(samples.value.data[2, :, 1])
 
 # Compute sample covariance
 C = cov(samples.value.data[:, :, 1])

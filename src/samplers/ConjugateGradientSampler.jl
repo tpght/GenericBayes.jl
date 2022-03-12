@@ -12,6 +12,12 @@ struct ConjugateGradientSampler{T<:Real} <: AbstractSampler
     stop::Int                   # Stop after this many steps
 end
 
+"""
+    Constructor; sets stop to dimension of initial_θ
+"""
+function ConjugateGradientSampler(initial_θ::Vector{T}) where T<:Real
+    ConjugateGradientSampler(initial_θ, length(initial_θ))
+end
 
 """
     step(rng, model::????, sampler::ConjugateGradientSampler,
@@ -31,12 +37,19 @@ function step(rng, model::GaussianInverse{T}, sampler::ConjugateGradientSampler{
     g = model.Λ * current_state - model.w
     v = -copy(g)
     r = -copy(g)
-    s = zeros(p)
+    # s = zeros(p)
 
     stop = min(p, sampler.stop)
 
     for i in 1:stop
-        ρ = v' * model.Λ * v
+        # Compute matrix-vector product
+        q = model.Λ * v
+
+        ρ = v' * q
+        if(ρ ≈ 0.0)
+            @warn "Conjugate gradient sampler exited early after $i iterations"
+            return current_state, current_state
+        end
 
         λ = (rand(Normal()) / sqrt(ρ)) - ((v' * g) / ρ)
 
@@ -58,11 +71,12 @@ function step(rng, model::GaussianInverse{T}, sampler::ConjugateGradientSampler{
         end
 
         # TODO: This can be rewritten in terms of previous g and Λ * v
-        g = model.Λ * current_state .- model.w               # Gradient (negative residual)
+        g = g .+ (λ .* q)
 
         δ = (g' * r) / (r' * r)     # Component of x in r direction
-        s = s .+ (δ .* r)             # Euclidean projection into current Krylov space
-        r = s .- g                   # Compute next Euclidean-orthogonal direction
+        # s = s .+ (δ .* r)             # Euclidean projection into current Krylov space
+        # r = s .- g                   # Compute next Euclidean-orthogonal direction
+        r = (1 + δ) .* r .- λ .* q
         v = r .- ((r' * g) / (ρ * λ)) .* v # Compute next conjugate direction
     end
 
