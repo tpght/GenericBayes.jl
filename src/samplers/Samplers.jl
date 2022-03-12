@@ -19,5 +19,6 @@ include("AdaptiveRejectionSampler.jl")
 
 include("MIterativeGeneral.jl")
 include("ConjugateGradientSampler.jl")
+include("GaussianEliminationSampler.jl")
 
 include("ARMS.jl")
