@@ -428,9 +428,6 @@ end
     Euclidean
 
 Dually flat Euclidean geometry. Primal and dual co-ordinates are identical.
-
-The Parameter P indicates the co-ordinate system in which the Riemannian metric
-is the identity.
 """
 struct Euclidean<:Bregman end
 
@@ -441,6 +438,25 @@ inverse_legendre_dual(θ, geometry::Euclidean, model::BayesModel) = θ
 
 logabsdetmetric(θ, geometry::Euclidean, model::BayesModel, k::Int) = 0.0
 logabsdetmetric(θ, geometry::Euclidean, model::BayesModel) = 0.0
+
+
+"""
+    Quadratic
+
+Dually flat Quadratic geometry; generator of the form 1/2 x^T Λ x - w^T x
+"""
+struct Quadratic{T<:Real, P}<:Bregman
+    Λ::AbstractArray{T, P}
+    w::Vector{T}
+end
+
+bregman_generator(θ, geometry::Quadratic, model::BayesModel) = 0.5 * θ' * model.Λ * θ - w' * θ
+metric(θ, geometry::Quadratic, model::BayesModel) = model.Λ
+legendre_dual(θ, geometry::Quadratic, model::BayesModel) = model.Λ * θ - w
+inverse_legendre_dual(θ, geometry::Quadratic, model::BayesModel) = model.Λ \ (θ + w)
+
+logabsdetmetric(θ, geometry::Quadratic, model::BayesModel, k::Int) = 0.0
+logabsdetmetric(θ, geometry::Quadratic, model::BayesModel) = 0.0
 
 # function metric(θ::P, geometry::Euclidean{P}, model::BayesModel) where
 #     P<:Parameter{T} where T<:Real

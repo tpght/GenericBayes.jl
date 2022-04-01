@@ -13,7 +13,6 @@ U = spdiagm(Pair(1, rand(p-1)),
 
 Λ = U' * U
 
-
 w = ones(p)
 model = GaussianInverse(Λ, w)
 sampler = GaussianEliminationSampler(rand(p))
@@ -24,6 +23,9 @@ samples=sample(model, sampler, N)
 # Look at samples.value.data to see individual samples
 # E.g. 50th sample
 plot(samples.value.data[2, :, 1])
+
+# Can also plot samples directly
+plot(samples)
 
 # Compute sample covariance
 C = cov(samples.value.data[:, :, 1])

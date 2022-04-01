@@ -51,7 +51,7 @@ function step(rng, model::GaussianInverse{T}, sampler::ConjugateGradientSampler{
             return current_state, current_state
         end
 
-        λ = (rand(Normal()) / sqrt(ρ)) - ((v' * g) / ρ)
+        λ = (rand(rng, Normal()) / sqrt(ρ)) - ((v' * g) / ρ)
 
         # Compute update to current position
         dx = λ .* v

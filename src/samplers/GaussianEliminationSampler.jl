@@ -38,7 +38,7 @@ function step(rng, model::GaussianInverse{T}, sampler::GaussianEliminationSample
     for i in 1:p
         d[i] = 1.0 / A[i,i]               # Equivalent of ρ in CG sampler
 
-        z = rand(Normal()) * sqrt(d[i])   # Sample random component of conjugate update
+        z = rand(rng, Normal()) * sqrt(d[i])   # Sample random component of conjugate update
         e = (w[i] - A[i,:]' * current_state) * d[i]   # Deterministic component
 
         # Update state
