@@ -1,5 +1,5 @@
 using LinearAlgebra, ForwardDiff, Optim
-export Bregman, DualParameter, NegativeLogDensity, Euclidean
+export Bregman, DualParameter, NegativeLogDensity, Euclidean, Quadratic
 export legendre_dual, bregman_generator, inverse_legendre_dual, divergence
 
 """
@@ -95,7 +95,7 @@ function metric_lower(θ, geometry::NegativeLogDensity, model::BayesModel,
 end
 
 """
-    legendre_dual(θ::Parameter, geometry::Bregman, model::BayesModel)
+    legendre_dual(θ::Vector, geometry::Bregman, model::BayesModel)
 
 Compute the Legendre dual, i.e. the gradient of `bregman_generator`.
 

@@ -89,17 +89,16 @@ function block_basis!(A::Matrix{T}, θ::Vector{T}, model::BayesModel,
     # The following is a numerically stable Gram-Schmidt
     # Shamelessly taken from https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process
     A[:, block]=gradient
-    # for j=1:(block-1)
-    #     A[:,block]=A[:,block]-(A[:,j]'*A[:,block]
-    #                 /(norm(A[:,j]))^2) * A[:,j]
-    # end
+    for j=1:(block-1)
+        A[:,block]=A[:,block]-(A[:,j]'*A[:,block]
+                    /(norm(A[:,j]))^2) * A[:,j]
+    end
     # A[:, block] = A[:, block]/norm(A[:, block]);
 end
 
 block_size(sampler::MOrthogonalGradient) = 1
 subsamples(sampler::MOrthogonalGradient) = sampler.subsamples
 subsampler(sampler::MOrthogonalGradient) = sampler.subsampler
-
 
 struct GeneralMGibbs{T<:Real} <: MIterativeGeneral
     geometry::Bregman           # Geometry to be used in the sampler
@@ -171,7 +170,6 @@ function step(rng, model::BayesModel, sampler::MIterativeGeneral,
                                         progress=false)
 
         # Save a subsample in the current block
-
         block_model.θ .= membed(subsample, block_model)
         # embed = membed(subsample, block_model)
         # Ap = A[:,[lower_inds; block_inds]]
@@ -229,8 +227,8 @@ function membed(x::Vector{T}, model::BlockModel{T}) where T<:Real
     model.b[:] = θ[:] - Ap * (pinv(Ap) * θ[:])
     # model.b[:] = model.b[:] + C * (x - (C' * model.b[:]))
     model.b[:] = model.b[:] + C * x
-    @show norm(Ap' * model.b[:])
-    @show norm(Ap' * C)
+    # @show norm(Ap' * model.b[:])
+    # @show norm(Ap' * C)
     x0 = Ap' * θ
     δ = model.δ[lower_inds]
 

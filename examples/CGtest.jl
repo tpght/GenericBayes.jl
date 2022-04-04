@@ -1,5 +1,5 @@
 using GenericBayes, Distributions, LinearAlgebra
-using Plots, MCMCChains, Random, SparseArrays
+using Plots, MCMCChains, Random, SparseArrays, StatsPlots
 
 # Set a random seed
 rng = MersenneTwister(1234)
@@ -15,10 +15,10 @@ U = spdiagm(Pair(1, rand(p-1)),
 Λ = U' * U
 
 
-w = zeros(p)
+w = ones(p)
 model = GaussianInverse(Λ, w)
 sampler = ConjugateGradientSampler(rand(p))
-N = 10^4
+N = 10^6
 
 samples=sample(model, sampler, N)
 
@@ -29,3 +29,7 @@ plot(samples.value.data[2, :, 1])
 # Compute sample covariance
 C = cov(samples.value.data[:, :, 1])
 @show norm(C - inv(Matrix(Λ)), 2)
+
+# Check if the linear system is satisfied by the mean
+m = mean(samples.value.data[:, :, 1], dims=1)'
+@show norm(m - (Λ \ w), 2)

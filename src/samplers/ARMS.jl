@@ -31,7 +31,7 @@ end
 """
     sample(rng, model::BayesModel, sampler::ARMS{G}; kwargs...)
 
-Sample from model using Hamiltonian Monte Carlo (interface to AdvancedHMC).
+Sample from model using ARMS
 """
 function sample(model::BayesModel, sampler::ARMS, N::Integer;
                 kwargs...)

@@ -1,5 +1,5 @@
 using GenericBayes, Distributions, LinearAlgebra
-using Plots, MCMCChains, Random, SparseArrays
+using Plots, MCMCChains, Random, SparseArrays, StatsPlots
 
 # Set a random seed
 rng = MersenneTwister(1234)

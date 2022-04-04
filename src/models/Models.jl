@@ -61,7 +61,7 @@ function grad_log_posterior_density(model::BayesModel, θ)
 end
 
 function grad_log_posterior_density(model::BayesModel, θ, k::Int)
-    g = grad_log_posteior_density(model, θ)
+    g = grad_log_posterior_density(model, θ)
     g[1:k]
 end
 
@@ -100,11 +100,12 @@ function hessian_log_posterior_density(model::BayesModel, θ::Vector{T},
     A' * h * A
 end
 
-# include("Diaconis.jl")
+include("Diaconis.jl")
 # include("LinearGaussian.jl")
 # include("Forward.jl")
 # include("Rosenbrock.jl")
 include("CanonicalGLM.jl")
+include("ChenIbrahimGLM.jl")
 include("SimpleGaussian.jl")
 include("SubmanifoldConditionals.jl")
 include("GaussianInverse.jl")

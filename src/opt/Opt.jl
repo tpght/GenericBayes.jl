@@ -1,8 +1,7 @@
 """
-    lower_box(model, P)
+    lower_box(model)
 
-Define the lower bounds for components of parameters of type `P` when used
-to parameterize `model`.
+Define the lower bounds for parameterization of `model`.
 
 Default returns `-Inf` in each component, i.e. no lower bounds.
 """
@@ -11,8 +10,7 @@ lower_box(model::BayesModel) = [-Inf for i in 1:dimension(model)]
 """
     upper_box(model, P)
 
-Define the upper bounds for components of parameters of type `P` when used
-to parameterize `model`.
+Define the upper bounds for parameterization of `model`.
 
 Default returns `Inf` in each component, i.e. no upper bounds.
 """

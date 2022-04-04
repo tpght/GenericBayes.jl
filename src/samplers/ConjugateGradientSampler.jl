@@ -35,6 +35,7 @@ function step(rng, model::GaussianInverse{T}, sampler::ConjugateGradientSampler{
     end
 
     g = model.Λ * current_state - model.w
+    # TODO Do these have to be copied?
     v = -copy(g)
     r = -copy(g)
     # s = zeros(p)
