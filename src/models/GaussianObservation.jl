@@ -12,6 +12,7 @@ Cumulant generating function in natural parameters
 """
 function ψ(model::DiaconisConjugate{Normal},
            θ::Vector) where D<:Distribution
+    if(θ[1] <= 0.0) return Inf end
     ((θ[2]^2) / (4.0 * θ[1])) + 0.5 * log(pi / θ[1])
 end
 

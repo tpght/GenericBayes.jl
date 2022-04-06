@@ -21,4 +21,9 @@ include("MIterativeGeneral.jl")
 include("ConjugateGradientSampler.jl")
 include("GaussianEliminationSampler.jl")
 
+include("proposals/Proposal.jl")
+include("proposals/RandomWalkProposal.jl")
+
+include("OrthogonalGradient.jl")
+
 include("ARMS.jl")
