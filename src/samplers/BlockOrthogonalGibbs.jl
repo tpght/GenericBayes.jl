@@ -1,45 +1,47 @@
 import AbstractMCMC.AbstractSampler, AbstractMCMC.step
-export MIterativeOrthogonalGibbs, set_initial
+export BlockOrthogonalGibbs
 
 """
-    ERecursiveOrthogonalGibbs
+    BlockOrthogonalGibbs
 
-Orthogonal Gibbs, recursing on e-flat submanifolds.
+Orthogonal Gibbs sampling algorithm: generalizes e/m-recursive versions
 """
-struct MIterativeOrthogonalGibbs{T<:Real} <: AbstractSampler
+struct BlockOrthogonalGibbs <: AbstractSampler
     geometry::Bregman           # Geometry to be used in the sampler
-    k::Int                      # Dimension of the e-flat submanifold
+    block_size::Int                      # Dimension of the e-flat submanifold
     subsampler::AbstractSampler # Sampler to be used on each e-flat submanifold
     subsamples::Int                  # Number of times to run the embedded sampler
-    initial_θ::Vector{T}
-end
-
-function set_initial(sampler::MIterativeOrthogonalGibbs{T}, v::Vector{T}) where
-    T<:Real
-    sampler.initial_θ[1:length(v)] .= v
 end
 
 
 """
-    step(rng, model::BayesModel, sampler::ProductManifoldHMC,
+    step(rng, model::BayesModel, sampler::BlockOrthogonalGibbs,
               state=nothing; kwargs...)
 
-One iteration of the e-recursive orthogonal gibbs method.
+One iteration of the orthogonal gibbs method.
 """
-function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
+function step(rng, model::BayesModel, sampler::BlockOrthogonalGibbs,
               current_state=nothing; kwargs...) where T<:Real
 
     p = dimension(model)
-    k = sampler.k
+    k = sampler.block_size
 
     # Check if l divides p
-    @assert p % k == 0 "MIterativeOrthogonalGibbs: k does not divide model dimension"
+    @assert p % k == 0 "BlockOrthogonalGibbs: k does not divide model dimension"
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = sampler.initial_θ[1:dimension(model)]
-        return state, state
+        θ = max_posterior(model, zeros(p))
+        # η = legendre_dual(θ, sampler.geometry, model, p-k)
+        # return θ, [θ, η]
+        return θ, θ
     end
+
+    # θ = copy(current_state[1])
+    # η = copy(current_state[2])
+
+    # η1 = legendre_dual(θ, sampler.geometry, model, p - k)
+    # @show norm(η - η1, 2)
 
     # θ contains the current state
     # NOTE is it necessary to copy here?
@@ -73,20 +75,22 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
                                           model, k * (block - 1),
                                           x0=θ[lower_inds])
 
+            # NOTE Here we evaluate a big sub-matrix.
+            # what if we simply evaluate the k × k block on the diagonal, in
+            # the correct position for the block?
             logπ(model, embed) - logabsdetmetric(embed, sampler.geometry,
                                                  model, k * (block - 1))
         end
 
         # Draw samples from the k-dimensional dist. with log-density eflat_target
-        set_initial(sampler.subsampler, θ[block_inds])
         subsamples = AbstractMCMC.sample(rng,
-                                        LogDensityModel(target, k),
-                                        sampler.subsampler, sampler.subsamples,
-                                        progress=false)
+                                         LogDensityModel(target, k),
+                                         sampler.subsampler, sampler.subsamples,
+                                         progress=false)
 
         # Save a subsample in the current block
-        θ[block_inds] .= subsamples.value[end, :].data # A convoluted way of
-        # getting the last sample
+        θ[block_inds] .= subsamples[end]
+
 
         # embed into the ambient space
         embed = inverse_legendre_dual([ηc; θ[[block_inds; upper_inds]]],
@@ -98,11 +102,21 @@ function step(rng, model::BayesModel, sampler::MIterativeOrthogonalGibbs,
         θ[[lower_inds; block_inds]] .= embed[[lower_inds; block_inds]]
 
         # Compute dual co-ordinates for this block
-        η[block_inds] = ForwardDiff.gradient(x -> bregman_generator(
-                                                 [embed[lower_inds]; x; embed[upper_inds]],
-                                                 sampler.geometry, model), embed[block_inds])
-
+        # NOTE: η[lower_inds] should be equal to [lower_inds] of dual coordinate
+        # of embed = ηc, so only have to save this block.
+        # NOTE: This is unnecessary at the final step...
+        if(block < nblocks)
+            η[block_inds] .= ForwardDiff.gradient(x -> bregman_generator(
+                                             [embed[lower_inds]; x; embed[upper_inds]],
+                sampler.geometry, model),
+                                                  embed[block_inds])
+        else
+            η[block_inds] = θ[block_inds]
+        end
     end
 
+    # The first returned value is the sample, i.e. in primal co-ordinates
+    # The second value is the "state"; for this sampler, that's the pair of
+    # primal and dual variables.
     return θ, θ
 end

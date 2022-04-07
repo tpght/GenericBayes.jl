@@ -78,7 +78,6 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
 
         # Now sample from the relevant conditional (see thesis)
         # For this we use slice sampling (see Neal's paper).
-        # TODO make these parameters of the algorithm.
         α = α0
 
         # Evaluate log density of the conditional.

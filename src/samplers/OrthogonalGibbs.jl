@@ -1,122 +1,125 @@
 import AbstractMCMC.AbstractSampler, AbstractMCMC.step
 export OrthogonalGibbs
 
+function log_cond_density(α, θ, η, j, model, geometry)
+    ξ = [η[1:(j-1)]; α; θ[(j+1):end]]
+    if(j == 1)
+        return log_posterior_density(model,ξ), ξ
+    end
+
+    θ = inverse_legendre_dual(ξ, geometry, model, j-1; x0 = θ[1:(j-1)])
+    log_dens = log_posterior_density(model, θ) -
+        logabsdetmetric(θ, geometry, model, j-1)
+    return log_dens, θ
+end
+
 """
     OrthogonalGibbs
 
-Orthogonal Gibbs sampling algorithm: generalizes e/m-recursive versions
+Orthogonal Gibbs sampler with blocksize=1.
 """
-struct OrthogonalGibbs <: AbstractSampler
+struct OrthogonalGibbs{T<:Real} <: AbstractSampler
+    initial_θ::Vector{T}        # Initial point at which to start sampler
     geometry::Bregman           # Geometry to be used in the sampler
-    block_size::Int                      # Dimension of the e-flat submanifold
-    subsampler::AbstractSampler # Sampler to be used on each e-flat submanifold
-    subsamples::Int                  # Number of times to run the embedded sampler
+    w::T                        # Initial window size for slice subsampling
+    m::Int                      # Maximum number of times to stepout (slice sampler)
+    nsubsamples::Int            # Number of times to run the embedded sampler
 end
 
-
 """
-    step(rng, model::BayesModel, sampler::OrthogonalGibbs,
+    step(rng, model::BayesModel, sampler::ProductManifoldHMC,
               state=nothing; kwargs...)
 
-One iteration of the orthogonal gibbs method.
+One iteration of the e-recursive orthogonal gibbs method.
 """
 function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
               current_state=nothing; kwargs...) where T<:Real
-
+    # Get dimension of model
     p = dimension(model)
-    k = sampler.block_size
-
-    # Check if l divides p
-    @assert p % k == 0 "OrthogonalGibbs: k does not divide model dimension"
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        θ = max_posterior(model, zeros(p))
-        # η = legendre_dual(θ, sampler.geometry, model, p-k)
-        # return θ, [θ, η]
-        return θ, θ
+        state = sampler.initial_θ[1:p]
+        return state, state
     end
-
-    # θ = copy(current_state[1])
-    # η = copy(current_state[2])
-
-    # η1 = legendre_dual(θ, sampler.geometry, model, p - k)
-    # @show norm(η - η1, 2)
 
     # θ contains the current state
     # NOTE is it necessary to copy here?
     θ = copy(current_state)
+    η = zeros(p)
 
-    # Compute dual co-ordinates for everything but the final block
-    # TODO Save this between Markov steps
-    η = legendre_dual(θ, sampler.geometry, model, p - k)
+    for j = 1:p
 
-    # Compute number of blocks
-    nblocks = Int(p / k)
+        # Resample the j^th component conditionally on 1,..,(j-1) dual variables,
+        # (j+1),..,p primal
+        α = θ[j]
 
-    for block = 1:nblocks
-        # CONDITIONED ON dual components: [1 : (block - 1) * k]
-        # CONDITIONED ON primal components: [block * k + 1 :end ]
-        upper_inds = (block*k+1):p
-        lower_inds = 1:((block-1)*k)
-        block_inds = ((block-1)*k+1):(block*k)
-        θc = θ[upper_inds]
-        ηc = η[lower_inds] # If we're on the first block, this is empty
+        # Evaluate log density of the conditional.
+        logf = log_posterior_density(model, θ) -
+               logabsdetmetric(θ, sampler.geometry, model, (j-1))
 
-        # Sample block conditionally on values of η filled in thus far, and
-        # values of θ from the next block onwards.
-        function target(x)
-            # Evaluate joint density of mixed co-ordinates
-            θp = [x; θc]
+        for i=1:sampler.nsubsamples
+            # TODO pinv can be simplified; A has orthogonal columns
+            x0 = θ[1:(j-1)]
 
-            # embed into the ambient space
-            embed = inverse_legendre_dual([ηc; θp],
-                                          sampler.geometry,
-                                          model, k * (block - 1),
-                                          x0=θ[lower_inds])
+            # Firstly sample y ~ Unif(0, f(α))
+            # Equivalently to sampling z = g(α) - e
+            # where g = log(f) and e ~ Exponential(1).
+            z = logf - rand(rng, Exponential(1.0))
 
-            # NOTE Here we evaluate a big sub-matrix.
-            # what if we simply evaluate the k × k block on the diagonal, in
-            # the correct position for the block?
-            logπ(model, embed) - logabsdetmetric(embed, sampler.geometry,
-                                                 model, k * (block - 1))
+            # Slice is now defined by S = {x: z < g(x)}
+
+            # Stepping out procedure. (Fig 3 in Neal)
+            # TODO move to separate function
+            U = rand(rng, Uniform())
+            L = α - sampler.w * U
+            R = L + sampler.w
+            V = rand(rng, Uniform())
+            J = floor(sampler.m * V)
+            K = (sampler.m-1)-J
+
+            while (J >0 && log_cond_density(L, θ, η, j, model, sampler.geometry)[1] > z)
+                L = L -sampler.w
+                J = J-1
+            end
+
+            while (K >0 && log_cond_density(R, θ, η, j, model, sampler.geometry)[1] > z)
+                R = R +sampler.w
+                K = K-1
+            end
+
+            # Shrinkage and sampling procedure.
+            Lb = L
+            Rb = R
+
+            while (true)
+                U = rand(rng, Uniform())
+                α1 = Lb + U *(Rb - Lb)
+                logfα1, θ_α1 = log_cond_density(α1, θ, η, j, model, sampler.geometry)
+                if(z < logfα1)
+                    # Accept!
+                    α = α1
+                    logf = logfα1
+                    θ[:] .= θ_α1[:]
+                    break
+                end
+
+                if(α1 < α)
+                    Lb = α1
+                else
+                    Rb = α1
+                end
+
+                if(Lb ≈ Rb)
+                    @error "Interval shrunk to 0"
+                end
+            end
+
         end
 
-        # Draw samples from the k-dimensional dist. with log-density eflat_target
-        subsamples = AbstractMCMC.sample(rng,
-                                         LogDensityModel(target, k),
-                                         sampler.subsampler, sampler.subsamples,
-                                         progress=false)
-
-        # Save a subsample in the current block
-        θ[block_inds] .= subsamples[end]
-
-
-        # embed into the ambient space
-        embed = inverse_legendre_dual([ηc; θ[[block_inds; upper_inds]]],
-                                      sampler.geometry,
-                                      model, k * (block - 1),
-                                      x0=θ[lower_inds])
-
-        # NOTE: Why do we have to save these indices?
-        θ[[lower_inds; block_inds]] .= embed[[lower_inds; block_inds]]
-
-        # Compute dual co-ordinates for this block
-        # NOTE: η[lower_inds] should be equal to [lower_inds] of dual coordinate
-        # of embed = ηc, so only have to save this block.
-        # NOTE: This is unnecessary at the final step...
-        if(block < nblocks)
-            η[block_inds] .= ForwardDiff.gradient(x -> bregman_generator(
-                                             [embed[lower_inds]; x; embed[upper_inds]],
-                sampler.geometry, model),
-                                                  embed[block_inds])
-        else
-            η[block_inds] = θ[block_inds]
-        end
+        # Compute gradient of Bregman generator
+        η = legendre_dual(θ, sampler.geometry, model)
     end
 
-    # The first returned value is the sample, i.e. in primal co-ordinates
-    # The second value is the "state"; for this sampler, that's the pair of
-    # primal and dual variables.
     return θ, θ
 end
