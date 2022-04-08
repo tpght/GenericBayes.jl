@@ -10,3 +10,4 @@ include("OrthogonalGibbs.jl")
 include("OrthogonalGradient.jl")
 
 include("BlockOrthogonalGibbs.jl")
+include("CholeskySampler.jl")

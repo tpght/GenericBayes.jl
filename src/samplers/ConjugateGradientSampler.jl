@@ -47,8 +47,9 @@ function step(rng, model::GaussianInverse{T}, sampler::ConjugateGradientSampler{
         q = model.Λ * v
 
         ρ = v' * q
-        if(ρ ≈ 0.0)
-            @warn "Conjugate gradient sampler exited early after $i iterations"
+        if(ρ < eps())
+            @warn "Conjugate gradient sampler exited early after $i iterations;
+                    ρ = $ρ"
             return current_state, current_state
         end
 
@@ -66,8 +67,9 @@ function step(rng, model::GaussianInverse{T}, sampler::ConjugateGradientSampler{
             return current_state, current_state
         end
 
-        if(r' * r ≈ 0.0)
-            @warn "Conjugate gradient sampler exited early after $i iterations"
+        if(r' * r < eps())
+            @warn "Conjugate gradient sampler exited early after $i iterations;
+                    r' * r = $(r' * r)"
             return current_state, current_state
         end
 

@@ -33,7 +33,7 @@ function step(rng, model::GaussianInverse{T}, sampler::GaussianEliminationSample
     w = copy(model.w)
     d = zeros(p)
     v = diagm(ones(p))
-    A = copy(model.Λ)
+    A = Matrix(model.Λ)
 
     for i in 1:p
         d[i] = 1.0 / A[i,i]               # Equivalent of ρ in CG sampler
