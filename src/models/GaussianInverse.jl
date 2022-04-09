@@ -1,6 +1,5 @@
-export GaussianInverse, GaussianParam, circular_model, precondition_model
+export GaussianInverse, GaussianParam, circular_model
 using Distributions, SparseArrays
-import Base.map
 
 struct GaussianInverse{T<:Real, P} <: BayesModel
     Λ::Symmetric{T, <:AbstractArray{T,P}}   # Covariance

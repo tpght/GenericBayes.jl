@@ -72,6 +72,16 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::NegativeLogDensity,
 	∇ϕ(model, ξ1, k)
 end
 
+# function inverse_legendre_dual(ξ::Vector{T}, geometry::NegativeLogDensity,
+#                                model::DiaconisConjugate, A::Matrix{T}; x0=nothing) where T <: Real
+# 	n = size_hyperparam(model)
+# 	t = mean_hyperparam(model)
+
+# 	ξ1 = A' * (((1.0 / n) .* ξ) .+ model.t)
+
+# 	∇ϕ(model, ξ1, A)
+# end
+
 function inverse_legendre_dual(η::Vector{T}, geometry::NegativeLogDensity,
                                model::DiaconisConjugate) where T <: Real
 	n = size_hyperparam(model)

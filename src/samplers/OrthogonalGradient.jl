@@ -1,7 +1,6 @@
 import AbstractMCMC.AbstractSampler, AbstractMCMC.step
 export OrthogonalGradient
 
-
 function log_cond_density(α, r, c, δ, model, Ap, geometry, x0)
     b = α .* r  + c
 
@@ -26,6 +25,12 @@ struct OrthogonalGradient{T<:Real} <: AbstractSampler
     m::Int                      # Maximum number of times to stepout (slice sampler)
     nsubsamples::Int            # Number of times to run the embedded sampler
     stop::Int                   # Number of steps after which to restart the sampler.
+end
+
+function OrthogonalGradient(initial_θ::Vector{T}, geometry::Bregman,
+                            w::T, m::Int, nsubsamples::Int) where T<:Real
+    stop = length(initial_θ)
+    OrthogonalGradient(initial_θ, geometry, w, m, nsubsamples, stop)
 end
 
 """
@@ -54,10 +59,13 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
     δ = zeros(p)
     c = copy(θ)
 
+    # How many iterations should be done?
+    stop = min(p, sampler.stop)
+
     # Compute gradient of Bregman generator
     g = legendre_dual(θ, sampler.geometry, model)
 
-    for j = 1:p
+    for j = 1:stop
         # Gram-Schmidt step; orthogonalize
         r = A * δ - g
 
