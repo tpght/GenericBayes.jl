@@ -435,7 +435,11 @@ struct Euclidean<:Bregman end
 bregman_generator(θ, geometry::Euclidean, model::BayesModel) = 0.5 * θ' * θ
 metric(θ, geometry::Euclidean, model::BayesModel) = diagm(ones(dimension(model)))
 legendre_dual(θ, geometry::Euclidean, model::BayesModel) = θ
+legendre_dual(θ, geometry::Euclidean, model::BayesModel, k::Int) = θ
+legendre_dual(θ, geometry::Euclidean, model::BayesModel, A::Matrix) = θ
 inverse_legendre_dual(θ, geometry::Euclidean, model::BayesModel) = θ
+inverse_legendre_dual(θ, geometry::Euclidean, model::BayesModel, k::Int) = θ
+inverse_legendre_dual(θ, geometry::Euclidean, model::BayesModel, A::Matrix) = θ
 
 logabsdetmetric(θ, geometry::Euclidean, model::BayesModel, k::Int) = 0.0
 logabsdetmetric(θ, geometry::Euclidean, model::BayesModel) = 0.0

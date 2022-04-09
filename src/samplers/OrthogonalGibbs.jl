@@ -24,6 +24,14 @@ struct OrthogonalGibbs{T<:Real} <: AbstractSampler
     w::T                        # Initial window size for slice subsampling
     m::Int                      # Maximum number of times to stepout (slice sampler)
     nsubsamples::Int            # Number of times to run the embedded sampler
+    return_last::Bool           # If true, final iterate of algorithm is returned as a sample
+end
+
+function OrthogonalGibbs(initial_θ::Vector{T}, geometry::Bregman, w::T,
+                         m::Int, nsubsamples::Int) where T<:Real
+    return_last=true
+    OrthogonalGibbs(initial_θ, geometry, w,
+                    m, nsubsamples, return_last)
 end
 
 """
@@ -39,17 +47,23 @@ function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        state = sampler.initial_θ[1:p]
-        return state, state
+        θ = sampler.initial_θ[1:p]
+
+        # Compute gradient of Bregman generator
+        η = legendre_dual(θ, sampler.geometry, model)
+
+        return θ, (p, θ, η)
     end
 
-    # θ contains the current state
-    # NOTE is it necessary to copy here?
-    θ = copy(current_state)
-    η = zeros(p)
+    # Extract last iteration index and last sample from state
+    last_j = current_state[1]
+    θ = copy(current_state[2])
+    η = current_state[3]
 
-    for j = 1:p
+    # Restart iterations if required.
+    if (last_j >= p) last_j=0 end
 
+    for j = (last_j+1):p
         # Resample the j^th component conditionally on 1,..,(j-1) dual variables,
         # (j+1),..,p primal
         α = θ[j]
@@ -100,7 +114,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
                     # Accept!
                     α = α1
                     logf = logfα1
-                    θ[:] .= θ_α1[:]
+                    θ = θ_α1
                     break
                 end
 
@@ -119,7 +133,10 @@ function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
 
         # Compute gradient of Bregman generator
         η = legendre_dual(θ, sampler.geometry, model)
+        last_j = j
+
+        if(sampler.return_last == false) break end
     end
 
-    return θ, θ
+    return θ, (last_j, θ, η)
 end
