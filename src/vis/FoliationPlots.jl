@@ -1,4 +1,4 @@
-export ploteflat!
+export ploteflat!, plotmflat!, plotmflatline!
 
 """
     ploteflat!(plt, A, θ)
@@ -24,6 +24,30 @@ function ploteflat!(plt, A, θ)
     x = [θ1[1]; θ2[1]]
     y = [θ1[2]; θ2[2]]
     plot!(plt, x,y, legend=false, lw=2, lc=:red)
+end
+
+"""
+    plotmflatline
+
+Plots the m-geodesic connecting θ1 to θ2.
+"""
+function plotmflatline!(plt, θ1, θ2, model, geometry; npoints=100)
+    # Convert to dual co-ordinates.
+    η1 = legendre_dual(θ1, geometry, model)
+    η2 = legendre_dual(θ2, geometry, model)
+
+    h =  (1.0/ (npoints - 1)) .* (η2 - η1)
+    points = [η1 .+ (i-1) .* h for i in 1:npoints]
+
+    # Convert points back to primal co-ordinates.
+    for i=1:npoints
+        points[i] = inverse_legendre_dual(points[i], geometry, model)
+    end
+
+    # Plot the points
+    x = [points[i][1] for i in 1:npoints]
+    y = [points[i][2] for i in 1:npoints]
+    plot!(plt, x, y, lw=2, lc=:blue)
 end
 
 """
