@@ -69,8 +69,9 @@ function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
         α = θ[j]
 
         # Evaluate log density of the conditional.
-        logf = log_posterior_density(model, θ) -
-               logabsdetmetric(θ, sampler.geometry, model, (j-1))
+        #logf = log_posterior_density(model, θ) -
+        #       logabsdetmetric(θ, sampler.geometry, model, (j-1))
+        logf, θ_2 = log_cond_density(α, θ, η, j, model, sampler.geometry)
 
         for i=1:sampler.nsubsamples
             # TODO pinv can be simplified; A has orthogonal columns

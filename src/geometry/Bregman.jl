@@ -170,7 +170,7 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
     # Add a gradient tolerance as an optional argument; may increase performance.
     # g_tol = 1e-8
     # result = optimize(proxy, x0, method=method; g_tol=g_tol)
-    result = optimize(proxy, x0, method=method)
+    result = optimize(proxy, g!, h!, x0, method=method)
 
     if(Optim.converged(result) == false)
         @show result
@@ -231,13 +231,10 @@ function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
     # Optimize the function
     # Set a very low tolerance on the gradient
     # TODO add gradient tolerance
-    result = optimize(proxy, g!, h!, x0, Newton())
-    # result = optimize(proxy, g!, x0, ConjugateGradient())
-    # result = optimize(proxy, x0, Newton(); autodiff= :forward)
+    method = Newton()
+    result = optimize(proxy, g!, h!, x0, method=method, g_tol=1e-10)
 
-    # method = ConjugateGradient(linesearch=BackTracking())
-    # result = optimize(proxy, x0, method=method; autodiff=:forward,
-    #                   g_tol=1e-10, x_tol=1e-10, f_tol=1e-10)
+    # @show Optim.iterations(result)
 
     if(Optim.converged(result) == false)
         @show result

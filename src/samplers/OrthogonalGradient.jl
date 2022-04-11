@@ -22,7 +22,7 @@ struct OrthogonalGradient{T<:Real} <: AbstractSampler
     initial_θ::Vector{T}        # Initial point at which to start sampler
     geometry::Bregman           # Geometry to be used in the sampler
     w::T                        # Initial window size for slice subsampling
-    m::Int                      # Maximum number of times to stepout (slice sampler)
+    p::Int                      # Maximum number of times to stepout (slice sampler)
     nsubsamples::Int            # Number of times to run the embedded sampler
     stop::Int                   # Number of steps after which to restart the sampler.
 end
@@ -89,8 +89,10 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
         α = α0
 
         # Evaluate log density of the conditional.
-        logf = log_posterior_density(model, θ) -
-               logabsdetmetric(θ, sampler.geometry, model, Ap)
+        # logf = log_posterior_density(model, θ) -
+        #        logabsdetmetric(θ, sampler.geometry, model, Ap)
+        x0 = pinv(Ap) * θ
+        logf, θ_2 = log_cond_density(α, r, c, δ, model, Ap, sampler.geometry, x0)
 
         for i=1:sampler.nsubsamples
             # TODO pinv can be simplified; A has orthogonal columns
@@ -108,27 +110,29 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
             U = rand(rng, Uniform())
             L = α - sampler.w * U
             R = L + sampler.w
-            V = rand(rng, Uniform())
-            J = floor(sampler.m * V)
-            K = (sampler.m-1)-J
+            K = sampler.p
 
             logfL, θ_L = log_cond_density(L, r, c, δ, model, Ap, sampler.geometry, x0)
-            while (J >0 && logfL > z)
-                L = L -sampler.w
-                J = J-1
-                logfL, θ_L = log_cond_density(L, r, c, δ, model, Ap, sampler.geometry, x0)
-            end
-
             logfR, θ_R = log_cond_density(R, r, c, δ, model, Ap, sampler.geometry, x0)
-            while (K >0 && logfR > z)
-                R = R +sampler.w
-                K = K-1
+            while (K >0 && (logfL > z || logfR > z))
+                V = rand(rng, Uniform())
+
+                if(V< 0.5)
+                    L = L - (R-L)
+                else
+                    R = R + (R-L)
+                end
+
+                logfL, θ_L = log_cond_density(L, r, c, δ, model, Ap, sampler.geometry, x0)
                 logfR, θ_R = log_cond_density(R, r, c, δ, model, Ap, sampler.geometry, x0)
+                K = K-1
             end
 
             # Shrinkage and sampling procedure.
             Lb = L
             Rb = R
+
+            wmax=Rb-Lb
 
             while (true)
                 U = rand(rng, Uniform())
@@ -149,6 +153,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
                 end
 
                 if(Lb ≈ Rb)
+                    @show wmax
                     @error "Interval shrunk to 0"
                 end
             end
