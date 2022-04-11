@@ -47,7 +47,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalGibbs,
 
     # First, generate an initial state if required
     if (current_state == nothing)
-        θ = sampler.initial_θ[1:p]
+        θ = copy(sampler.initial_θ)
 
         # Compute gradient of Bregman generator
         η = legendre_dual(θ, sampler.geometry, model)
