@@ -1,7 +1,7 @@
 import Plots.plot
 
 """ Plots the posterior density of a model. """
-function plot(model::BayesModel; scale=1.0, p = 0.0:0.09:0.99, npoints = 100, kwargs...)
+function plot(model::BayesModel; scale=1.0, p = 0.099:0.099:0.99, npoints = 100, kwargs...)
     post(x1, x2) = log_posterior_density(model, [x1; x2])
 
     # Compute contours using Laplace approximation (see thesis)
@@ -12,7 +12,6 @@ function plot(model::BayesModel; scale=1.0, p = 0.0:0.09:0.99, npoints = 100, kw
 
     xrange = LinRange(map[1]-scale, map[1]+scale, npoints)
     yrange = LinRange(map[2]-scale, map[2]+scale, npoints)
-    @show kwargs
     contour(xrange,yrange,post, levels=levels, legend=false; kwargs...)
 end
 

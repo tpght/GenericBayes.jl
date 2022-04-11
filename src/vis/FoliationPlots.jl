@@ -31,7 +31,8 @@ end
 
 Plots the m-geodesic connecting θ1 to θ2.
 """
-function plotmflatline!(plt, θ1, θ2, model, geometry; npoints=100)
+function plotmflatline!(plt, θ1, θ2, model, geometry; npoints=100, lw=1.5,
+                        lc=:blue, quiver=false)
     # Convert to dual co-ordinates.
     η1 = legendre_dual(θ1, geometry, model)
     η2 = legendre_dual(θ2, geometry, model)
@@ -47,7 +48,15 @@ function plotmflatline!(plt, θ1, θ2, model, geometry; npoints=100)
     # Plot the points
     x = [points[i][1] for i in 1:npoints]
     y = [points[i][2] for i in 1:npoints]
-    plot!(plt, x, y, lw=2, lc=:blue)
+
+    if(quiver==false)
+        plot!(plt, x, y, lw=lw, lc=lc)
+    else
+        plot!(plt, x[1:end-1], y[1:end-1], lw=lw, lc=lc)
+        dx = [x[npoints] - x[npoints-1]; y[npoints] - y[npoints-1]]
+        quiver!(plt, [x[npoints-1]], [y[npoints-1]],
+                quiver=([dx[1]], [dx[2]]), lc=lc)
+    end
 end
 
 """
