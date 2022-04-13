@@ -35,7 +35,6 @@ function sample(rng::AbstractRNG, model::BayesModel,
 
     start=time()
 
-    # Use mode of the distribution as starting point
     initial_θ = sampler.initial_θ[1:dimension(model)]
 
     # Define the target distribution

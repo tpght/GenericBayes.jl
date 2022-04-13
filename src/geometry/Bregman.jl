@@ -170,7 +170,7 @@ function inverse_legendre_dual(ξ::Vector{T}, geometry::Bregman, model::BayesMod
     # Add a gradient tolerance as an optional argument; may increase performance.
     # g_tol = 1e-8
     # result = optimize(proxy, x0, method=method; g_tol=g_tol)
-    result = optimize(proxy, g!, h!, x0, method=method)
+    result = optimize(proxy, g!, h!, x0, method=method, iterations=5)
 
     if(Optim.converged(result) == false)
         @show result
@@ -211,11 +211,6 @@ function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
         x0 = zeros(T,k) + x0
     end
 
-    # Define cost function
-    # For conjugate gradient, A is an orthogonal matrix. Therefore, A' A is the
-    # k × k identity.
-    # Same is true for Gibbs.
-    # Calculate projection b of θ onto (Im A)^⟂ = Ker(A')
     full_primal(α) = A * α + b
     proxy(α) = bregman_generator(full_primal(α), geometry, model) - α' * A' * A * δ
 
@@ -229,12 +224,8 @@ function inverse_legendre_dual(δ::Vector{T}, b::Vector{T}, A::Matrix{T},
     end
 
     # Optimize the function
-    # Set a very low tolerance on the gradient
-    # TODO add gradient tolerance
     method = Newton()
-    result = optimize(proxy, g!, h!, x0, method=method, g_tol=1e-10)
-
-    # @show Optim.iterations(result)
+    result = optimize(proxy, g!, h!, x0, method=method, iterations=25)
 
     if(Optim.converged(result) == false)
         @show result

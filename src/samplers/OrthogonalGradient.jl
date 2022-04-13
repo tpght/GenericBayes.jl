@@ -22,7 +22,7 @@ struct OrthogonalGradient{T<:Real} <: AbstractSampler
     initial_θ::Vector{T}        # Initial point at which to start sampler
     geometry::Bregman           # Geometry to be used in the sampler
     w::T                        # Initial window size for slice subsampling
-    p::Int                      # Maximum number of times to stepout (slice sampler)
+    p::Int                      # Maximum number of times to double interval (slice sampler)
     nsubsamples::Int            # Number of times to run the embedded sampler
     stop::Int                   # Number of steps after which to restart the sampler.
 end
@@ -54,16 +54,18 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
     # NOTE is it necessary to copy here?
     θ = copy(current_state)
 
-    # Allocate space for variables
-    A = diagm(ones(p))
-    δ = zeros(p)
-    c = copy(θ)
-
     # How many iterations should be done?
     stop = min(p, sampler.stop)
 
+    # Allocate space for variables
+    A = zeros(p, stop)
+    Apinv = zeros(stop, p)
+    δ = zeros(stop)
+    c = copy(θ)
+
     # Compute gradient of Bregman generator
     g = legendre_dual(θ, sampler.geometry, model)
+
 
     for j = 1:stop
         # Gram-Schmidt step; orthogonalize
@@ -91,12 +93,12 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
         # Evaluate log density of the conditional.
         # logf = log_posterior_density(model, θ) -
         #        logabsdetmetric(θ, sampler.geometry, model, Ap)
-        x0 = pinv(Ap) * θ
+        x0 = Apinv[1:(j-1), :] * θ
         logf, θ_2 = log_cond_density(α, r, c, δ, model, Ap, sampler.geometry, x0)
 
         for i=1:sampler.nsubsamples
             # TODO pinv can be simplified; A has orthogonal columns
-            x0 = pinv(Ap) * θ
+            x0 = Apinv[1:(j-1), :] * θ
 
             # Firstly sample y ~ Unif(0, f(α))
             # Equivalently to sampling z = g(α) - e
@@ -104,9 +106,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
             z = logf - rand(rng, Exponential(1.0))
 
             # Slice is now defined by S = {x: z < g(x)}
-
             # Stepping out procedure. (Fig 3 in Neal)
-            # TODO move to separate function
             U = rand(rng, Uniform())
             L = α - sampler.w * U
             R = L + sampler.w
@@ -119,12 +119,16 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
 
                 if(V< 0.5)
                     L = L - (R-L)
+                    logfL, θ_L = log_cond_density(L, r, c, δ, model, Ap,
+                                                  sampler.geometry, Apinv[1:(j-1), :] *
+                                                      (θ_L - (θ_R - θ_L)))
                 else
                     R = R + (R-L)
+                    logfR, θ_R = log_cond_density(R, r, c, δ, model, Ap,
+                                                  sampler.geometry, Apinv[1:(j-1), :] *
+                                                (θ_R + (θ_R - θ_L)))
                 end
-
-                logfL, θ_L = log_cond_density(L, r, c, δ, model, Ap, sampler.geometry, x0)
-                logfR, θ_R = log_cond_density(R, r, c, δ, model, Ap, sampler.geometry, x0)
+                w=R-L
                 K = K-1
             end
 
@@ -137,6 +141,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
             while (true)
                 U = rand(rng, Uniform())
                 α1 = Lb + U *(Rb - Lb)
+                x0 = Apinv[1:(j-1), :] * ( θ_L .+ U .* (θ_R .- θ_L))
                 logfα1, θ_α1 = log_cond_density(α1, r, c, δ, model, Ap, sampler.geometry, x0)
                 if(z < logfα1)
                     # Accept!
@@ -147,8 +152,10 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
                 end
 
                 if(α1 < α)
+                    θ_L = θ_α1
                     Lb = α1
                 else
+                    θ_R = θ_α1
                     Rb = α1
                 end
 
@@ -167,6 +174,7 @@ function step(rng, model::BayesModel, sampler::OrthogonalGradient,
 
         # Save the vector
         A[:, j] .= r
+        Apinv[j, :] = r ./ (r' * r)
 
     end
 
