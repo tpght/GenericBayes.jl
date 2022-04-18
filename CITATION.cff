@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+message: "If you use this package, please cite it as below."
+authors:
+  - family-names: Pennington
+    given-names: Thomas
+title: "GenericBayes.jl - Sampling with dually-flat geometry"
+date-released: 2022-04-18
